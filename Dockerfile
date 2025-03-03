@@ -27,8 +27,8 @@ COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
 
-# Install only production dependencies
-RUN npm install --production
+# Install only production dependencies and clean up unnecessary files
+RUN npm install --production && npm cache clean --force
 
 # Expose the port the app runs on
 EXPOSE 3000
