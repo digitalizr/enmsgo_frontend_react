@@ -176,8 +176,9 @@ export default function CustomerDashboard() {
               <CardTitle>Daily Energy Consumption & Cost</CardTitle>
               <CardDescription>Hourly energy usage and cost for today</CardDescription>
             </CardHeader>
-            <CardContent className="h-[350px]">
+            <CardContent className="h-[300px] overflow-hidden">
               <ChartContainer
+                className="h-full"
                 config={{
                   consumption: {
                     label: "Consumption (kWh)",
@@ -189,7 +190,7 @@ export default function CustomerDashboard() {
                   },
                 }}
               >
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
                   <AreaChart data={dailyConsumptionData}>
                     <defs>
                       <linearGradient id="colorConsumption" x1="0" y1="0" x2="0" y2="1">
@@ -238,8 +239,9 @@ export default function CustomerDashboard() {
               <CardTitle>Weekly Energy Consumption & Cost</CardTitle>
               <CardDescription>Daily energy usage and cost for the current week</CardDescription>
             </CardHeader>
-            <CardContent className="h-[350px]">
+            <CardContent className="h-[300px] overflow-hidden">
               <ChartContainer
+                className="h-full"
                 config={{
                   consumption: {
                     label: "Consumption (kWh)",
@@ -251,7 +253,7 @@ export default function CustomerDashboard() {
                   },
                 }}
               >
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
                   <BarChart data={weeklyConsumptionData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="day" />
@@ -279,8 +281,9 @@ export default function CustomerDashboard() {
               <CardTitle>Monthly Energy Consumption & Cost</CardTitle>
               <CardDescription>Monthly energy usage and cost for the current year</CardDescription>
             </CardHeader>
-            <CardContent className="h-[350px]">
+            <CardContent className="h-[300px] overflow-hidden">
               <ChartContainer
+                className="h-full"
                 config={{
                   consumption: {
                     label: "Consumption (kWh)",
@@ -292,7 +295,7 @@ export default function CustomerDashboard() {
                   },
                 }}
               >
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
                   <LineChart data={monthlyConsumptionData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
@@ -322,8 +325,9 @@ export default function CustomerDashboard() {
               <CardTitle>Yearly Energy Consumption & Cost</CardTitle>
               <CardDescription>Annual energy usage and cost with prediction for current year</CardDescription>
             </CardHeader>
-            <CardContent className="h-[350px]">
+            <CardContent className="h-[300px] overflow-hidden">
               <ChartContainer
+                className="h-full"
                 config={{
                   consumption: {
                     label: "Consumption (kWh)",
@@ -335,7 +339,7 @@ export default function CustomerDashboard() {
                   },
                 }}
               >
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
                   <BarChart data={yearlyConsumptionData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="year" />

@@ -108,14 +108,14 @@ const integrationsData = [
 ]
 
 export default function OperationsSettingsPage() {
+  const [isEditing, setIsEditing] = useState(false)
+
   return (
     <div className="flex flex-col gap-4 p-4 md:p-8">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Operations Settings</h1>
-          <p className="text-muted-foreground">
-            Configure system-wide operations settings
-          </p>
+          <p className="text-muted-foreground">Configure system settings and manage operations</p>
         </div>
       </div>
 
@@ -811,10 +811,7 @@ export default function OperationsSettingsPage() {
             </CardFooter>
           </Card>
 
-          <Card>
-            <CardHeader></CardHeader>
-          </Card>
-
+          {/* Notification templates card starts here */}
           <Card>
             <CardHeader>
               <CardTitle>Notification Templates</CardTitle>
@@ -828,7 +825,7 @@ export default function OperationsSettingsPage() {
                   rows={4}
                   defaultValue="[EnergyMS] Alert: {{alert_type}} - {{alert_message}}\n\nDevice: {{device_name}}\nTime: {{timestamp}}\n\nView details: {{alert_url}}"
                 />
-                <p className="text-xs text-muted-foreground">Use &#123;&#123; variable &#125;&#125; placeholders for dynamic content</p>
+                <p className="text-xs text-muted-foreground">Use {'{{'} variable {'}}'} placeholders for dynamic content</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="sms-template">SMS Template</Label>

@@ -50,6 +50,8 @@ interface SidebarNavItem {
   section: "operations" | "customer"
 }
 
+// Make sure the pathname check is correct for operations routes
+
 const operationsNavItems: SidebarNavItem[] = [
   {
     title: "Dashboard",

@@ -125,6 +125,99 @@ const recommendations = [
   },
 ]
 
+// Sample data for energy efficiency score
+const efficiencyScoreData = {
+  current: 72,
+  previous: 68,
+  industry: 65,
+  breakdown: [
+    { category: "Equipment Efficiency", score: 78, benchmark: 70 },
+    { category: "Operational Patterns", score: 65, benchmark: 68 },
+    { category: "Building Envelope", score: 82, benchmark: 72 },
+    { category: "Energy Management", score: 70, benchmark: 62 },
+  ],
+}
+
+// Sample data for correlation analysis
+const correlationData = [
+  { factor: "Outside Temperature", correlation: 0.85, impact: "high" },
+  { factor: "Occupancy", correlation: 0.72, impact: "high" },
+  { factor: "Production Volume", correlation: 0.68, impact: "medium" },
+  { factor: "Time of Day", correlation: 0.64, impact: "medium" },
+  { factor: "Day of Week", correlation: 0.45, impact: "low" },
+]
+
+// Sample data for anomaly patterns
+const anomalyPatternsData = [
+  {
+    id: 1,
+    pattern: "Cyclical Spikes",
+    description: "Regular energy spikes occurring every Tuesday at 2PM",
+    confidence: 92,
+    impact: "medium",
+    potentialCauses: ["Scheduled equipment testing", "Weekly maintenance", "Shift change operations"],
+  },
+  {
+    id: 2,
+    pattern: "Gradual Baseline Increase",
+    description: "5% monthly increase in baseline energy consumption over the last 3 months",
+    confidence: 88,
+    impact: "high",
+    potentialCauses: ["Equipment degradation", "HVAC inefficiency", "Control system drift"],
+  },
+  {
+    id: 3,
+    pattern: "Irregular Overnight Usage",
+    description: "Unexpected energy consumption patterns between 1AM-4AM",
+    confidence: 76,
+    impact: "medium",
+    potentialCauses: ["Security systems", "IT infrastructure", "Unauthorized equipment usage"],
+  },
+]
+
+// Sample data for scenario analysis
+const scenarioAnalysisData = [
+  {
+    id: 1,
+    name: "Peak Load Reduction",
+    description: "Implementing load shifting to reduce peak demand by 15%",
+    savings: 12500,
+    implementation: "medium",
+    roi: 8,
+    impact: [
+      { metric: "Peak Demand", change: -15 },
+      { metric: "Energy Costs", change: -12 },
+      { metric: "Carbon Emissions", change: -8 },
+    ],
+  },
+  {
+    id: 2,
+    name: "Equipment Upgrade",
+    description: "Replacing aging HVAC equipment with high-efficiency alternatives",
+    savings: 18200,
+    implementation: "high",
+    roi: 24,
+    impact: [
+      { metric: "Energy Consumption", change: -22 },
+      { metric: "Maintenance Costs", change: -35 },
+      { metric: "Occupant Comfort", change: 15 },
+    ],
+  },
+  {
+    id: 3,
+    name: "Operational Schedule Optimization",
+    description: "Adjusting operational schedules based on occupancy and production needs",
+    savings: 8700,
+    implementation: "low",
+    roi: 3,
+    impact: [
+      { metric: "Energy Consumption", change: -8 },
+      { metric: "Staff Productivity", change: 5 },
+      { metric: "Equipment Lifespan", change: 10 },
+    ],
+  },
+]
+
 export default function AIInsightsPage() {
   const [date, setDate] = useState({
     from: new Date(),
@@ -153,6 +246,7 @@ export default function AIInsightsPage() {
           <TabsTrigger value="predictions">Energy Predictions</TabsTrigger>
           <TabsTrigger value="breakdown">Energy Breakdown</TabsTrigger>
           <TabsTrigger value="recommendations">Recommendations</TabsTrigger>
+          <TabsTrigger value="advanced-ai">Advanced AI Analysis</TabsTrigger>
         </TabsList>
 
         <TabsContent value="predictions" className="space-y-4">
@@ -163,7 +257,7 @@ export default function AIInsightsPage() {
                 Predicted energy usage for the next 4 months based on historical patterns
               </CardDescription>
             </CardHeader>
-            <CardContent className="h-[350px]">
+            <CardContent className="h-[300px] overflow-hidden">
               <ChartContainer
                 config={{
                   actual: {
@@ -175,8 +269,9 @@ export default function AIInsightsPage() {
                     color: "hsl(var(--chart-2))",
                   },
                 }}
+                className="h-full"
               >
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
                   <RechartsLineChart data={predictiveTrendData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
@@ -313,7 +408,7 @@ export default function AIInsightsPage() {
                 <CardTitle>Energy Usage Breakdown</CardTitle>
                 <CardDescription>How your energy is being consumed by category</CardDescription>
               </CardHeader>
-              <CardContent className="h-[350px]">
+              <CardContent className="h-[300px] overflow-hidden">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -341,7 +436,7 @@ export default function AIInsightsPage() {
                 <CardTitle>Optimization Potential</CardTitle>
                 <CardDescription>Current vs. optimized energy usage by category</CardDescription>
               </CardHeader>
-              <CardContent className="h-[350px]">
+              <CardContent className="h-[300px] overflow-hidden">
                 <ChartContainer
                   config={{
                     current: {
@@ -385,7 +480,7 @@ export default function AIInsightsPage() {
               <CardTitle>Time-of-Use Analysis</CardTitle>
               <CardDescription>Energy consumption patterns throughout the day</CardDescription>
             </CardHeader>
-            <CardContent className="h-[300px]">
+            <CardContent className="h-[280px] overflow-hidden">
               <ChartContainer
                 config={{
                   consumption: {
@@ -566,6 +661,257 @@ export default function AIInsightsPage() {
               </CardFooter>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="advanced-ai" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card className="md:col-span-1">
+              <CardHeader>
+                <CardTitle>Energy Efficiency Score</CardTitle>
+                <CardDescription>AI-calculated efficiency rating based on multiple factors</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col items-center justify-center space-y-2">
+                  <div className="relative h-40 w-40">
+                    <svg className="h-full w-full" viewBox="0 0 100 100">
+                      <circle className="stroke-muted" cx="50" cy="50" r="45" fill="transparent" strokeWidth="10" />
+                      <circle
+                        className="stroke-primary"
+                        cx="50"
+                        cy="50"
+                        r="45"
+                        fill="transparent"
+                        strokeWidth="10"
+                        strokeDasharray={`${efficiencyScoreData.current * 2.83} 283`}
+                        strokeDashoffset="0"
+                        transform="rotate(-90 50 50)"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-4xl font-bold">{efficiencyScoreData.current}</span>
+                      <span className="text-sm text-muted-foreground">out of 100</span>
+                    </div>
+                  </div>
+                  <div className="mt-4 w-full space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span>Previous Score</span>
+                      <span className="font-medium">{efficiencyScoreData.previous}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span>Industry Average</span>
+                      <span className="font-medium">{efficiencyScoreData.industry}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="flex items-center gap-1 text-green-500">
+                        <TrendingDown className="h-4 w-4" />
+                        <span>Improvement</span>
+                      </span>
+                      <span className="font-medium text-green-500">
+                        +{efficiencyScoreData.current - efficiencyScoreData.previous} pts
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="md:col-span-2">
+              <CardHeader>
+                <CardTitle>Score Breakdown</CardTitle>
+                <CardDescription>Component scores compared to industry benchmarks</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {efficiencyScoreData.breakdown.map((item, index) => (
+                    <div key={index} className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">{item.category}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">{item.score}</span>
+                          <span className="text-xs text-muted-foreground">/ 100</span>
+                        </div>
+                      </div>
+                      <div className="relative h-2 w-full rounded-full bg-muted">
+                        <div className="absolute h-full rounded-full bg-primary" style={{ width: `${item.score}%` }} />
+                        <div
+                          className="absolute h-full w-1 rounded-full bg-secondary"
+                          style={{ left: `${item.benchmark}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Your Score: {item.score}</span>
+                        <span>Industry Benchmark: {item.benchmark}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Energy Consumption Factors</CardTitle>
+                <CardDescription>AI-identified correlations between factors and energy usage</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {correlationData.map((item, index) => (
+                    <div key={index} className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">{item.factor}</span>
+                        <Badge
+                          variant={
+                            item.impact === "high" ? "default" : item.impact === "medium" ? "secondary" : "outline"
+                          }
+                        >
+                          {item.impact.charAt(0).toUpperCase() + item.impact.slice(1)} Impact
+                        </Badge>
+                      </div>
+                      <div className="relative h-2 w-full rounded-full bg-muted">
+                        <div
+                          className="absolute h-full rounded-full bg-primary"
+                          style={{ width: `${item.correlation * 100}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Correlation: {(item.correlation * 100).toFixed(0)}%</span>
+                        <span>
+                          {item.correlation > 0.8
+                            ? "Very Strong"
+                            : item.correlation > 0.6
+                              ? "Strong"
+                              : item.correlation > 0.4
+                                ? "Moderate"
+                                : "Weak"}{" "}
+                          Relationship
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Pattern Recognition</CardTitle>
+                <CardDescription>AI-detected patterns in your energy consumption data</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {anomalyPatternsData.map((pattern) => (
+                    <div key={pattern.id} className="rounded-lg border p-3">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-medium">{pattern.pattern}</h3>
+                        <Badge
+                          variant={
+                            pattern.impact === "high"
+                              ? "destructive"
+                              : pattern.impact === "medium"
+                                ? "secondary"
+                                : "outline"
+                          }
+                        >
+                          {pattern.impact.charAt(0).toUpperCase() + pattern.impact.slice(1)} Impact
+                        </Badge>
+                      </div>
+                      <p className="mt-1 text-sm text-muted-foreground">{pattern.description}</p>
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">AI Confidence:</span>
+                        <div className="relative h-1.5 w-24 rounded-full bg-muted">
+                          <div
+                            className="absolute h-full rounded-full bg-primary"
+                            style={{ width: `${pattern.confidence}%` }}
+                          />
+                        </div>
+                        <span className="text-xs font-medium">{pattern.confidence}%</span>
+                      </div>
+                      <div className="mt-2">
+                        <span className="text-xs font-medium">Potential Causes:</span>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {pattern.potentialCauses.map((cause, idx) => (
+                            <Badge key={idx} variant="outline" className="text-xs">
+                              {cause}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>AI Scenario Analysis</CardTitle>
+              <CardDescription>Predictive modeling of different energy optimization scenarios</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                {scenarioAnalysisData.map((scenario) => (
+                  <div key={scenario.id} className="rounded-lg border p-4">
+                    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                      <div className="space-y-2">
+                        <h3 className="text-lg font-medium">{scenario.name}</h3>
+                        <p className="text-sm text-muted-foreground">{scenario.description}</p>
+                        <div className="flex items-center gap-2">
+                          <Badge
+                            variant={
+                              scenario.implementation === "low"
+                                ? "outline"
+                                : scenario.implementation === "medium"
+                                  ? "secondary"
+                                  : "default"
+                            }
+                          >
+                            {scenario.implementation.charAt(0).toUpperCase() + scenario.implementation.slice(1)}{" "}
+                            Implementation Effort
+                          </Badge>
+                          <Badge
+                            variant="outline"
+                            className="bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400"
+                          >
+                            ROI: {scenario.roi} months
+                          </Badge>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 rounded-lg bg-muted p-3">
+                        <div className="flex flex-col items-center">
+                          <span className="text-sm font-medium">Annual Savings</span>
+                          <span className="text-2xl font-bold text-green-500">
+                            ${scenario.savings.toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-4">
+                      <h4 className="mb-2 text-sm font-medium">Projected Impact</h4>
+                      <div className="grid grid-cols-3 gap-2">
+                        {scenario.impact.map((item, idx) => (
+                          <div key={idx} className="rounded-md border p-2">
+                            <div className="text-xs text-muted-foreground">{item.metric}</div>
+                            <div
+                              className={`text-sm font-medium ${item.change > 0 ? "text-green-500" : "text-red-500"}`}
+                            >
+                              {item.change > 0 ? "+" : ""}
+                              {item.change}%
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+            <CardFooter>
+              <Button className="w-full">Run Custom Scenario Analysis</Button>
+            </CardFooter>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
