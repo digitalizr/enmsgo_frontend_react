@@ -2,46 +2,46 @@
 
 import type React from "react"
 
-import { useEffect } from "react"
-import { useRouter, usePathname } from "next/navigation"
+import { useEffect, useState } from "react"
+import { usePathname, useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 
 export function RouteGuard({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
+  const [authorized, setAuthorized] = useState(false)
 
   useEffect(() => {
-    // Skip during initial load
-    if (isLoading) return
-
-    // Public routes that don't require authentication
-    const publicRoutes = ["/", "/signin", "/signup"]
-
-    // Check if route is public
-    if (publicRoutes.includes(pathname)) {
+    // Skip auth check for public routes
+    if (pathname === "/" || pathname === "/signin" || pathname === "/signup" || isLoading) {
+      setAuthorized(true)
       return
     }
 
-    // If not authenticated, redirect to signin
+    // Check if user is authenticated and has the right role for the route
     if (!user) {
+      setAuthorized(false)
       router.push("/signin")
       return
     }
 
-    // Role-based access control
-    if (user.role === "admin" && pathname.startsWith("/customer")) {
+    // Check role-based access
+    if (pathname.startsWith("/operations") && user.role !== "admin") {
+      setAuthorized(false)
+      router.push("/customer/dashboard")
+      return
+    }
+
+    if (pathname.startsWith("/customer") && user.role !== "customer" && user.role !== "admin") {
+      setAuthorized(false)
       router.push("/operations/dashboard")
       return
     }
 
-    if (user.role === "customer" && pathname.startsWith("/operations")) {
-      router.push("/customer/dashboard")
-      return
-    }
-  }, [user, isLoading, pathname, router])
+    setAuthorized(true)
+  }, [pathname, user, isLoading, router])
 
-  // Show loading or render children
-  return <>{children}</>
+  return authorized ? <>{children}</> : null
 }
 

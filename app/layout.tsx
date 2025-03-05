@@ -10,7 +10,7 @@ import { RouteGuard } from "@/components/route-guard"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Energy Management SaaS",
+  title: "EnergyMS Go",
   description: "Smart meter energy management platform",
     generator: 'v0.dev'
 }

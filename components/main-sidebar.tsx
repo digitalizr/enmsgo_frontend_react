@@ -148,7 +148,7 @@ export function MainSidebar() {
       <SidebarHeader className="flex items-center justify-between p-4">
         <Link href="/" className="flex items-center gap-2">
           <Zap className="h-6 w-6 text-primary" />
-          <span className="font-bold text-xl">EnergyMS</span>
+          <span className="font-bold text-xl">EnergyMS Go</span>
         </Link>
       </SidebarHeader>
       <SidebarSeparator />
@@ -222,8 +222,9 @@ export function MainSidebar() {
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>Profile</DropdownMenuItem>
-              <DropdownMenuItem>Settings</DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href={user?.role === "admin" ? "/operations/settings" : "/customer/settings"}>Profile</Link>
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={logout}>
                 <LogOut className="mr-2 h-4 w-4" />
