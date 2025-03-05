@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Plus, Search, MoreHorizontal, CheckCircle, XCircle } from "lucide-react"
+import { CircuitBoard, Plus, Search, MoreHorizontal, CheckCircle, XCircle, Pencil, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -10,8 +10,20 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 
 // Sample data
@@ -70,6 +82,10 @@ const smartMeters = [
 
 export default function SmartMetersPage() {
   const [searchTerm, setSearchTerm] = useState("")
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [selectedMeter, setSelectedMeter] = useState<any>(null)
 
   const filteredMeters = smartMeters.filter(
     (meter) =>
@@ -78,6 +94,16 @@ export default function SmartMetersPage() {
       meter.model.toLowerCase().includes(searchTerm.toLowerCase()),
   )
 
+  const handleEdit = (meter: any) => {
+    setSelectedMeter(meter)
+    setIsEditDialogOpen(true)
+  }
+
+  const handleDelete = (meter: any) => {
+    setSelectedMeter(meter)
+    setIsDeleteDialogOpen(true)
+  }
+
   return (
     <div className="flex flex-col gap-4 p-4 md:p-8">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -85,10 +111,50 @@ export default function SmartMetersPage() {
           <h1 className="text-3xl font-bold tracking-tight">Smart Meters</h1>
           <p className="text-muted-foreground">Manage your smart meter inventory</p>
         </div>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Smart Meter
-        </Button>
+        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Smart Meter
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add New Smart Meter</DialogTitle>
+              <DialogDescription>
+                Enter the details of the new smart meter to add it to your inventory.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="serialNumber">Serial Number</Label>
+                <Input id="serialNumber" placeholder="Enter serial number" />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="manufacturer">Manufacturer</Label>
+                <Select>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select manufacturer" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="elmeasure">Elmeasure</SelectItem>
+                    <SelectItem value="huawei">Huawei</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="model">Model</Label>
+                <Input id="model" placeholder="Enter model" />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={() => setIsAddDialogOpen(false)}>Add Smart Meter</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="flex items-center gap-2">
@@ -102,6 +168,26 @@ export default function SmartMetersPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
+        <Select defaultValue="all">
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Filter by status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Statuses</SelectItem>
+            <SelectItem value="online">Online</SelectItem>
+            <SelectItem value="offline">Offline</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select defaultValue="all">
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Filter by manufacturer" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Manufacturers</SelectItem>
+            <SelectItem value="elmeasure">Elmeasure</SelectItem>
+            <SelectItem value="huawei">Huawei</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="rounded-md border">
@@ -160,9 +246,19 @@ export default function SmartMetersPage() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuItem>Edit</DropdownMenuItem>
-                      <DropdownMenuItem>Delete</DropdownMenuItem>
-                      <DropdownMenuItem>View Details</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleEdit(meter)}>
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleDelete(meter)}>
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem>
+                        <CircuitBoard className="mr-2 h-4 w-4" />
+                        View Details
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
@@ -171,6 +267,82 @@ export default function SmartMetersPage() {
           </TableBody>
         </Table>
       </div>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Smart Meter</DialogTitle>
+            <DialogDescription>Update the details of the selected smart meter.</DialogDescription>
+          </DialogHeader>
+          {selectedMeter && (
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-serialNumber">Serial Number</Label>
+                <Input id="edit-serialNumber" defaultValue={selectedMeter.serialNumber} />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-manufacturer">Manufacturer</Label>
+                <Select defaultValue={selectedMeter.manufacturer.toLowerCase()}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="elmeasure">Elmeasure</SelectItem>
+                    <SelectItem value="huawei">Huawei</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-model">Model</Label>
+                <Input id="edit-model" defaultValue={selectedMeter.model} />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => setIsEditDialogOpen(false)}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Smart Meter</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this smart meter? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedMeter && (
+            <div className="py-4">
+              <p className="mb-2">You are about to delete the following smart meter:</p>
+              <div className="rounded-md bg-muted p-4">
+                <p>
+                  <strong>Serial Number:</strong> {selectedMeter.serialNumber}
+                </p>
+                <p>
+                  <strong>Manufacturer:</strong> {selectedMeter.manufacturer}
+                </p>
+                <p>
+                  <strong>Model:</strong> {selectedMeter.model}
+                </p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={() => setIsDeleteDialogOpen(false)}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

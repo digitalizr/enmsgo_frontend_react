@@ -16,6 +16,7 @@ import {
   FileText,
   Phone,
   BrainCircuit,
+  LogOut,
 } from "lucide-react"
 import {
   Sidebar,
@@ -42,6 +43,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { useAuth } from "@/contexts/auth-context"
 
 interface SidebarNavItem {
   title: string
@@ -49,8 +51,6 @@ interface SidebarNavItem {
   icon: LucideIcon
   section: "operations" | "customer"
 }
-
-// Make sure the pathname check is correct for operations routes
 
 const operationsNavItems: SidebarNavItem[] = [
   {
@@ -132,6 +132,8 @@ const customerNavItems: SidebarNavItem[] = [
 
 export function MainSidebar() {
   const pathname = usePathname()
+  const { user, logout } = useAuth()
+
   const isOperationsSection = pathname.startsWith("/operations")
   const isCustomerSection = pathname.startsWith("/customer")
 
@@ -207,12 +209,12 @@ export function MainSidebar() {
               <Button variant="ghost" className="flex items-center gap-2 h-auto p-2">
                 <Avatar className="h-8 w-8">
                   <AvatarImage src="/placeholder.svg?height=32&width=32" alt="User" />
-                  <AvatarFallback>U</AvatarFallback>
+                  <AvatarFallback>{user?.name?.charAt(0) || "U"}</AvatarFallback>
                 </Avatar>
                 <div className="flex flex-col items-start text-sm">
-                  <span className="font-medium">User Name</span>
+                  <span className="font-medium">{user?.name || "User"}</span>
                   <span className="text-xs text-muted-foreground">
-                    {isOperationsSection ? "Operations Team" : "Customer"}
+                    {user?.role === "admin" ? "Operations Team" : "Customer"}
                   </span>
                 </div>
               </Button>
@@ -223,7 +225,10 @@ export function MainSidebar() {
               <DropdownMenuItem>Profile</DropdownMenuItem>
               <DropdownMenuItem>Settings</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>Log out</DropdownMenuItem>
+              <DropdownMenuItem onClick={logout}>
+                <LogOut className="mr-2 h-4 w-4" />
+                Log out
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           <ModeToggle />
