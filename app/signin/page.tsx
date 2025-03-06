@@ -9,7 +9,7 @@ import { Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuth } from "@/contexts/auth-context"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
@@ -89,11 +89,14 @@ export default function SignInPage() {
               <Input
                 id="email"
                 type="email"
-                placeholder="admin@admin.com or user@user.com"
+                placeholder="Enter your email address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
+              <p className="text-xs text-muted-foreground">
+                For demonstration purposes: Email: user@user.com | Password: user
+              </p>
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
@@ -105,7 +108,7 @@ export default function SignInPage() {
               <Input
                 id="password"
                 type="password"
-                placeholder="admin or user"
+                placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -116,14 +119,14 @@ export default function SignInPage() {
             </Button>
           </form>
         </CardContent>
-        <CardFooter className="flex flex-col items-center justify-center gap-2">
+        {/* <CardFooter className="flex flex-col items-center justify-center gap-2">
           <div className="text-sm text-muted-foreground">
             Don't have an account?{" "}
             <Link href="/signup" className="text-primary hover:underline">
               Sign up
             </Link>
           </div>
-        </CardFooter>
+        </CardFooter> */}
       </Card>
     </div>
   )
