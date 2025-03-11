@@ -28,7 +28,7 @@ COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
 
 # Install only production dependencies and clean up unnecessary files
-RUN npm install --production && npm cache clean --force
+RUN npm install --legacy-peer-deps && npm cache clean --force
 
 # Expose the port the app runs on
 EXPOSE 3000
