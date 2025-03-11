@@ -1,11 +1,10 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Zap } from "lucide-react"
+import { Zap, Info } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -59,7 +58,8 @@ export default function SignInPage() {
         setError("Invalid email or password")
       }
     } catch (err) {
-      setError("An error occurred during sign in")
+      console.error("Sign in error:", err)
+      setError("An error occurred during sign in. Please try again.")
     } finally {
       setIsLoading(false)
     }
@@ -83,6 +83,28 @@ export default function SignInPage() {
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
+
+          <div className="mb-6 p-3 border border-blue-200 bg-blue-50 rounded-md flex items-start">
+            <Info className="h-5 w-5 text-blue-500 mt-0.5 mr-2 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-blue-800">Demo Account Access</p>
+              <div className="mt-1 grid grid-cols-2 gap-2 text-sm">
+                <div className="flex flex-col">
+                  <span className="font-semibold text-blue-700">Admin:</span>
+                  <code className="bg-white px-2 py-1 rounded border border-blue-100 text-blue-800">
+                    admin@admin.com
+                  </code>
+                  <code className="bg-white px-2 py-1 rounded border border-blue-100 text-blue-800 mt-1">admin</code>
+                </div>
+                <div className="flex flex-col">
+                  <span className="font-semibold text-blue-700">Customer:</span>
+                  <code className="bg-white px-2 py-1 rounded border border-blue-100 text-blue-800">user@user.com</code>
+                  <code className="bg-white px-2 py-1 rounded border border-blue-100 text-blue-800 mt-1">user</code>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -94,9 +116,6 @@ export default function SignInPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
-              <p className="text-xs text-muted-foreground">
-                For demonstration purposes: Email: user@user.com | Password: user
-              </p>
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
@@ -119,14 +138,6 @@ export default function SignInPage() {
             </Button>
           </form>
         </CardContent>
-        {/* <CardFooter className="flex flex-col items-center justify-center gap-2">
-          <div className="text-sm text-muted-foreground">
-            Don't have an account?{" "}
-            <Link href="/signup" className="text-primary hover:underline">
-              Sign up
-            </Link>
-          </div>
-        </CardFooter> */}
       </Card>
     </div>
   )

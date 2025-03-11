@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { createContext, useContext, useState, useEffect } from "react"
 
 export interface User {
@@ -26,28 +25,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Check for saved user on initial load
   useEffect(() => {
-    const savedUser = localStorage.getItem("user")
-    if (savedUser) {
-      try {
+    try {
+      const savedUser = localStorage.getItem("user")
+      if (savedUser) {
         setUser(JSON.parse(savedUser))
-      } catch (error) {
-        console.error("Failed to parse saved user:", error)
-        localStorage.removeItem("user")
       }
+    } catch (error) {
+      console.error("Failed to parse saved user:", error)
+      localStorage.removeItem("user")
+    } finally {
+      setIsLoading(false)
     }
-    setIsLoading(false)
   }, [])
 
   const login = async (userData: User) => {
-    setUser(userData)
-    localStorage.setItem("user", JSON.stringify(userData))
-    return Promise.resolve()
+    try {
+      setUser(userData)
+      localStorage.setItem("user", JSON.stringify(userData))
+      return Promise.resolve()
+    } catch (error) {
+      console.error("Login error:", error)
+      return Promise.reject(error)
+    }
   }
 
   const logout = async () => {
-    setUser(null)
-    localStorage.removeItem("user")
-    return Promise.resolve()
+    try {
+      setUser(null)
+      localStorage.removeItem("user")
+      return Promise.resolve()
+    } catch (error) {
+      console.error("Logout error:", error)
+      return Promise.reject(error)
+    }
   }
 
   return <AuthContext.Provider value={{ user, login, logout, isLoading }}>{children}</AuthContext.Provider>

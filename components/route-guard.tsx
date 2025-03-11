@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useEffect, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
@@ -13,33 +12,46 @@ export function RouteGuard({ children }: { children: React.ReactNode }) {
   const [authorized, setAuthorized] = useState(false)
 
   useEffect(() => {
-    // Skip auth check for public routes
-    if (pathname === "/" || pathname === "/signin" || pathname === "/signup" || isLoading) {
+    // Function to check authorization
+    const checkAuth = () => {
+      // Skip auth check for public routes
+      if (pathname === "/" || pathname === "/signin" || pathname === "/signup") {
+        setAuthorized(true)
+        return
+      }
+
+      // Check if user is authenticated
+      if (!user) {
+        setAuthorized(false)
+        router.push("/signin")
+        return
+      }
+
+      // Check role-based access
+      const isOperationsPath = pathname.includes("/operations")
+      const isCustomerPath = pathname.includes("/customer")
+
+      if (isOperationsPath && user.role !== "admin") {
+        setAuthorized(false)
+        router.push("/customer/dashboard")
+        return
+      }
+
+      if (isCustomerPath && user.role !== "customer" && user.role !== "admin") {
+        setAuthorized(false)
+        router.push("/operations/dashboard")
+        return
+      }
+
       setAuthorized(true)
-      return
     }
 
-    // Check if user is authenticated and has the right role for the route
-    if (!user) {
-      setAuthorized(false)
-      router.push("/signin")
-      return
+    // Only check auth when loading is complete
+    if (!isLoading) {
+      checkAuth()
+    } else {
+      setAuthorized(true) // Allow rendering while loading
     }
-
-    // Check role-based access
-    if (pathname.startsWith("/operations") && user.role !== "admin") {
-      setAuthorized(false)
-      router.push("/customer/dashboard")
-      return
-    }
-
-    if (pathname.startsWith("/customer") && user.role !== "customer" && user.role !== "admin") {
-      setAuthorized(false)
-      router.push("/operations/dashboard")
-      return
-    }
-
-    setAuthorized(true)
   }, [pathname, user, isLoading, router])
 
   return authorized ? <>{children}</> : null
