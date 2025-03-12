@@ -6,13 +6,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Activity,
   Zap,
-  DollarSign,
   TrendingDown,
-  AlertCircle,
   Calendar,
   Download,
   BrainCircuit,
   FileText,
+  BarChart3,
+  AlertTriangle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -98,7 +98,7 @@ export default function CustomerDashboard() {
             Export Data
           </Button>
           <Button>
-            <FileText className="mr-2 h-4 w-4" />
+            <FileText className="mr-2 h-5 w-5" />
             Generate Report
           </Button>
         </div>
@@ -108,7 +108,7 @@ export default function CustomerDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Today's Consumption</CardTitle>
-            <Zap className="h-4 w-4 text-muted-foreground" />
+            <Zap className="h-5 w-5" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">497 kWh</div>
@@ -122,7 +122,7 @@ export default function CustomerDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Today's Cost</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <BarChart3 className="h-5 w-5" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">$49.70</div>
@@ -416,7 +416,7 @@ export default function CustomerDashboard() {
                 },
               ].map((alert, i) => (
                 <div key={i} className="flex items-start gap-4 rounded-lg border p-3">
-                  <AlertCircle
+                  <AlertTriangle
                     className={`h-5 w-5 mt-0.5 ${
                       alert.type === "critical"
                         ? "text-destructive"

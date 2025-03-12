@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Activity, CircuitBoard, Building2, CheckCircle2, XCircle, AlertCircle } from "lucide-react"
+import { Activity, Building2, CheckCircle2, XCircle, AlertCircle, Zap } from "lucide-react"
 
 export default function OperationsDashboard() {
   return (
@@ -23,7 +23,7 @@ export default function OperationsDashboard() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Smart Meters</CardTitle>
-                <CircuitBoard className="h-4 w-4 text-muted-foreground" />
+                <Zap className="h-5 w-5 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">245</div>
@@ -34,7 +34,7 @@ export default function OperationsDashboard() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Active Clients</CardTitle>
-                <Building2 className="h-4 w-4 text-muted-foreground" />
+                <Building2 className="h-5 w-5 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">42</div>

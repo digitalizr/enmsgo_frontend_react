@@ -1,7 +1,5 @@
 "use client"
 
-import type React from "react"
-
 import { useState } from "react"
 import {
   Building,
@@ -10,12 +8,14 @@ import {
   MoreHorizontal,
   Pencil,
   Trash2,
-  MapPin,
-  Users,
   ChevronDown,
-  FolderTree,
+  ChevronRight,
   Building2,
   LayoutGrid,
+  MapPin,
+  Phone,
+  Mail,
+  User,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -25,7 +25,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -37,29 +36,29 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Textarea } from "@/components/ui/textarea"
 
-// Sample data
+// Sample data for companies
 const companies = [
   {
     id: "C001",
     name: "Acme Corporation",
     address: "123 Main St, New York, NY 10001",
-    contactPerson: "John Doe",
-    email: "john.doe@acme.com",
-    phone: "+1 (555) 123-4567",
-    status: "contracted",
+    contactName: "John Smith",
+    contactEmail: "john.smith@acmecorp.com",
+    contactPhone: "+1 (555) 123-4567",
+    status: "active",
     facilities: [
       {
         id: "F001",
         name: "Headquarters",
-        address: "123 Main St, New York, NY 10001",
+        location: "New York, NY",
         departments: [
           { id: "D001", name: "Executive" },
           { id: "D002", name: "HR" },
@@ -70,7 +69,7 @@ const companies = [
       {
         id: "F002",
         name: "Manufacturing Plant",
-        address: "456 Industry Ave, Chicago, IL 60607",
+        location: "Chicago, IL",
         departments: [
           { id: "D005", name: "Production" },
           { id: "D006", name: "Quality Control" },
@@ -78,25 +77,20 @@ const companies = [
         ],
       },
     ],
-    totalFacilities: 2,
-    totalDepartments: 7,
-    users: 12,
-    edgeGateways: 4,
-    smartMeters: 15,
   },
   {
     id: "C002",
     name: "TechCorp",
-    address: "456 Tech Ave, San Francisco, CA 94107",
-    contactPerson: "Jane Smith",
-    email: "jane.smith@techcorp.com",
-    phone: "+1 (555) 987-6543",
-    status: "engaged",
+    address: "456 Tech Blvd, San Francisco, CA 94107",
+    contactName: "Jane Doe",
+    contactEmail: "jane.doe@techcorp.com",
+    contactPhone: "+1 (555) 987-6543",
+    status: "active",
     facilities: [
       {
         id: "F003",
         name: "Main Office",
-        address: "456 Tech Ave, San Francisco, CA 94107",
+        location: "San Francisco, CA",
         departments: [
           { id: "D008", name: "Engineering" },
           { id: "D009", name: "Product" },
@@ -104,25 +98,20 @@ const companies = [
         ],
       },
     ],
-    totalFacilities: 1,
-    totalDepartments: 3,
-    users: 8,
-    edgeGateways: 3,
-    smartMeters: 10,
   },
   {
     id: "C003",
     name: "GlobalTech Industries",
-    address: "789 Industry Blvd, Chicago, IL 60607",
-    contactPerson: "Robert Johnson",
-    email: "robert.johnson@globaltech.com",
-    phone: "+1 (555) 456-7890",
-    status: "contracted",
+    address: "789 Global Way, Austin, TX 78701",
+    contactName: "Robert Johnson",
+    contactEmail: "robert@globaltech.com",
+    contactPhone: "+1 (555) 456-7890",
+    status: "active",
     facilities: [
       {
         id: "F004",
         name: "Headquarters",
-        address: "789 Industry Blvd, Chicago, IL 60607",
+        location: "Austin, TX",
         departments: [
           { id: "D011", name: "Management" },
           { id: "D012", name: "Finance" },
@@ -131,7 +120,7 @@ const companies = [
       {
         id: "F005",
         name: "Research Center",
-        address: "101 Innovation Dr, Boston, MA 02210",
+        location: "Boston, MA",
         departments: [
           { id: "D013", name: "R&D" },
           { id: "D014", name: "Testing" },
@@ -140,7 +129,7 @@ const companies = [
       {
         id: "F006",
         name: "Manufacturing",
-        address: "202 Factory Ln, Detroit, MI 48127",
+        location: "Detroit, MI",
         departments: [
           { id: "D015", name: "Assembly" },
           { id: "D016", name: "Quality Assurance" },
@@ -148,40 +137,20 @@ const companies = [
         ],
       },
     ],
-    totalFacilities: 3,
-    totalDepartments: 7,
-    users: 20,
-    edgeGateways: 8,
-    smartMeters: 25,
   },
   {
     id: "C004",
-    name: "Innovative Solutions",
-    address: "321 Innovation Dr, Austin, TX 78701",
-    contactPerson: "Sarah Williams",
-    email: "sarah.williams@innovative.com",
-    phone: "+1 (555) 234-5678",
-    status: "lead",
-    facilities: [],
-    totalFacilities: 0,
-    totalDepartments: 0,
-    users: 1,
-    edgeGateways: 0,
-    smartMeters: 0,
-  },
-  {
-    id: "C005",
     name: "Future Energy",
-    address: "654 Power Lane, Seattle, WA 98101",
-    contactPerson: "Michael Brown",
-    email: "michael.brown@future-energy.com",
-    phone: "+1 (555) 876-5432",
-    status: "contracted",
+    address: "321 Energy Blvd, Houston, TX 77002",
+    contactName: "Sarah Williams",
+    contactEmail: "sarah@futuretech.com",
+    contactPhone: "+1 (555) 789-0123",
+    status: "inactive",
     facilities: [
       {
         id: "F007",
         name: "Main Office",
-        address: "654 Power Lane, Seattle, WA 98101",
+        location: "Houston, TX",
         departments: [
           { id: "D018", name: "Administration" },
           { id: "D019", name: "Sales" },
@@ -189,100 +158,60 @@ const companies = [
         ],
       },
     ],
-    totalFacilities: 1,
-    totalDepartments: 3,
-    users: 5,
-    edgeGateways: 2,
-    smartMeters: 7,
   },
 ]
 
 export default function CompaniesPage() {
   const [searchTerm, setSearchTerm] = useState("")
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [isViewStructureDialogOpen, setIsViewStructureDialogOpen] = useState(false)
+  const [isAddCompanyOpen, setIsAddCompanyOpen] = useState(false)
+  const [isAddFacilityOpen, setIsAddFacilityOpen] = useState(false)
+  const [isAddDepartmentOpen, setIsAddDepartmentOpen] = useState(false)
   const [selectedCompany, setSelectedCompany] = useState<any>(null)
+  const [selectedFacility, setSelectedFacility] = useState<any>(null)
+  const [expandedCompanies, setExpandedCompanies] = useState<string[]>([])
+  const [expandedFacilities, setExpandedFacilities] = useState<string[]>([])
   const [activeTab, setActiveTab] = useState("all")
 
-  // State for company structure modeling
+  // New company form state
   const [newCompany, setNewCompany] = useState({
     name: "",
     address: "",
-    contactPerson: "",
-    email: "",
-    phone: "",
-    status: "lead",
-    facilities: [
-      {
-        name: "",
-        address: "",
-        departments: [{ name: "" }],
-      },
-    ],
+    contactName: "",
+    contactEmail: "",
+    contactPhone: "",
+    status: "active",
   })
 
-  const addFacility = () => {
-    setNewCompany({
-      ...newCompany,
-      facilities: [...newCompany.facilities, { name: "", address: "", departments: [{ name: "" }] }],
-    })
-  }
+  // New facility form state
+  const [newFacility, setNewFacility] = useState({
+    name: "",
+    location: "",
+  })
 
-  const updateFacility = (index: number, field: string, value: string) => {
-    const updatedFacilities = [...newCompany.facilities]
-    updatedFacilities[index] = {
-      ...updatedFacilities[index],
-      [field]: value,
+  // New department form state
+  const [newDepartment, setNewDepartment] = useState({
+    name: "",
+  })
+
+  // Toggle company expansion
+  const toggleCompanyExpansion = (companyId: string) => {
+    if (expandedCompanies.includes(companyId)) {
+      setExpandedCompanies(expandedCompanies.filter((id) => id !== companyId))
+    } else {
+      setExpandedCompanies([...expandedCompanies, companyId])
     }
-    setNewCompany({
-      ...newCompany,
-      facilities: updatedFacilities,
-    })
   }
 
-  const addDepartment = (facilityIndex: number) => {
-    const updatedFacilities = [...newCompany.facilities]
-    updatedFacilities[facilityIndex].departments.push({ name: "" })
-    setNewCompany({
-      ...newCompany,
-      facilities: updatedFacilities,
-    })
-  }
-
-  const updateDepartment = (facilityIndex: number, deptIndex: number, value: string) => {
-    const updatedFacilities = [...newCompany.facilities]
-    updatedFacilities[facilityIndex].departments[deptIndex].name = value
-    setNewCompany({
-      ...newCompany,
-      facilities: updatedFacilities,
-    })
-  }
-
-  const removeFacility = (index: number) => {
-    const updatedFacilities = [...newCompany.facilities]
-    updatedFacilities.splice(index, 1)
-    setNewCompany({
-      ...newCompany,
-      facilities: updatedFacilities.length
-        ? updatedFacilities
-        : [{ name: "", address: "", departments: [{ name: "" }] }],
-    })
-  }
-
-  const removeDepartment = (facilityIndex: number, deptIndex: number) => {
-    const updatedFacilities = [...newCompany.facilities]
-    updatedFacilities[facilityIndex].departments.splice(deptIndex, 1)
-    if (updatedFacilities[facilityIndex].departments.length === 0) {
-      updatedFacilities[facilityIndex].departments.push({ name: "" })
+  // Toggle facility expansion
+  const toggleFacilityExpansion = (facilityId: string) => {
+    if (expandedFacilities.includes(facilityId)) {
+      setExpandedFacilities(expandedFacilities.filter((id) => id !== facilityId))
+    } else {
+      setExpandedFacilities([...expandedFacilities, facilityId])
     }
-    setNewCompany({
-      ...newCompany,
-      facilities: updatedFacilities,
-    })
   }
 
+  // Handle company input changes
   const handleCompanyInputChange = (field: string, value: string) => {
     setNewCompany({
       ...newCompany,
@@ -290,255 +219,138 @@ export default function CompaniesPage() {
     })
   }
 
+  // Handle facility input changes
+  const handleFacilityInputChange = (field: string, value: string) => {
+    setNewFacility({
+      ...newFacility,
+      [field]: value,
+    })
+  }
+
+  // Handle department input changes
+  const handleDepartmentInputChange = (field: string, value: string) => {
+    setNewDepartment({
+      ...newDepartment,
+      [field]: value,
+    })
+  }
+
+  // Filter companies based on search and active tab
   const filteredCompanies = companies.filter((company) => {
     const matchesSearch =
       company.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      company.contactPerson.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      company.email.toLowerCase().includes(searchTerm.toLowerCase())
+      company.contactName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      company.contactEmail.toLowerCase().includes(searchTerm.toLowerCase())
 
-    const matchesTab = activeTab === "all" || company.status === activeTab
+    const matchesTab =
+      activeTab === "all" ||
+      (activeTab === "active" && company.status === "active") ||
+      (activeTab === "inactive" && company.status === "inactive")
 
     return matchesSearch && matchesTab
   })
 
-  const handleEdit = (company: any) => {
-    setSelectedCompany(company)
-    setIsEditDialogOpen(true)
-  }
-
-  const handleDelete = (company: any) => {
-    setSelectedCompany(company)
-    setIsDeleteDialogOpen(true)
-  }
-
-  const handleViewStructure = (company: any) => {
-    setSelectedCompany(company)
-    setIsViewStructureDialogOpen(true)
-  }
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "contracted":
-        return <Badge className="bg-green-500">Contracted</Badge>
-      case "engaged":
-        return <Badge className="bg-blue-500">Engaged</Badge>
-      case "lead":
-        return <Badge className="bg-amber-500">Lead</Badge>
-      default:
-        return <Badge variant="outline">Unknown</Badge>
-    }
-  }
-
-  const resetNewCompany = () => {
-    setNewCompany({
-      name: "",
-      address: "",
-      contactPerson: "",
-      email: "",
-      phone: "",
-      status: "lead",
-      facilities: [
-        {
-          name: "",
-          address: "",
-          departments: [{ name: "" }],
-        },
-      ],
-    })
-  }
+  // Count total facilities and departments
+  const totalFacilities = companies.reduce((total, company) => total + company.facilities.length, 0)
+  const totalDepartments = companies.reduce(
+    (total, company) =>
+      total + company.facilities.reduce((facilityTotal, facility) => facilityTotal + facility.departments.length, 0),
+    0,
+  )
 
   return (
     <div className="flex flex-col gap-4 p-4 md:p-8">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Companies</h1>
-          <p className="text-muted-foreground">Manage your client companies and their structure</p>
+          <h1 className="text-3xl font-bold tracking-tight">Company Management</h1>
+          <p className="text-muted-foreground">Manage companies, facilities, and departments</p>
         </div>
-        <Dialog
-          open={isAddDialogOpen}
-          onOpenChange={(open) => {
-            setIsAddDialogOpen(open)
-            if (!open) resetNewCompany()
-          }}
-        >
+        <Dialog open={isAddCompanyOpen} onOpenChange={setIsAddCompanyOpen}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="mr-2 h-4 w-4" />
               Add Company
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+          <DialogContent className="sm:max-w-[600px]">
             <DialogHeader>
               <DialogTitle>Add New Company</DialogTitle>
-              <DialogDescription>
-                Enter the details of the new client company and model its structure.
-              </DialogDescription>
+              <DialogDescription>Enter the details of the new company.</DialogDescription>
             </DialogHeader>
-
-            <Tabs defaultValue="company-info" className="mt-4">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="company-info">Company Information</TabsTrigger>
-                <TabsTrigger value="structure">Company Structure</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="company-info" className="space-y-4 mt-4">
-                <div className="grid gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="name">Company Name</Label>
-                    <Input
-                      id="name"
-                      placeholder="Enter company name"
-                      value={newCompany.name}
-                      onChange={(e) => handleCompanyInputChange("name", e.target.value)}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="address">Address</Label>
-                    <Textarea
-                      id="address"
-                      placeholder="Enter company address"
-                      value={newCompany.address}
-                      onChange={(e) => handleCompanyInputChange("address", e.target.value)}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="contactPerson">Contact Person</Label>
-                      <Input
-                        id="contactPerson"
-                        placeholder="Enter contact name"
-                        value={newCompany.contactPerson}
-                        onChange={(e) => handleCompanyInputChange("contactPerson", e.target.value)}
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="email">Email</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        placeholder="Enter email address"
-                        value={newCompany.email}
-                        onChange={(e) => handleCompanyInputChange("email", e.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="phone">Phone</Label>
-                      <Input
-                        id="phone"
-                        placeholder="Enter phone number"
-                        value={newCompany.phone}
-                        onChange={(e) => handleCompanyInputChange("phone", e.target.value)}
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="status">Relationship Status</Label>
-                      <Select
-                        value={newCompany.status}
-                        onValueChange={(value) => handleCompanyInputChange("status", value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="lead">Lead</SelectItem>
-                          <SelectItem value="engaged">Engaged</SelectItem>
-                          <SelectItem value="contracted">Contracted</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="company-name">Company Name</Label>
+                <Input
+                  id="company-name"
+                  placeholder="Enter company name"
+                  value={newCompany.name}
+                  onChange={(e) => handleCompanyInputChange("name", e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="company-address">Address</Label>
+                <Textarea
+                  id="company-address"
+                  placeholder="Enter company address"
+                  value={newCompany.address}
+                  onChange={(e) => handleCompanyInputChange("address", e.target.value)}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="contact-name">Contact Person</Label>
+                  <Input
+                    id="contact-name"
+                    placeholder="Enter contact name"
+                    value={newCompany.contactName}
+                    onChange={(e) => handleCompanyInputChange("contactName", e.target.value)}
+                  />
                 </div>
-              </TabsContent>
-
-              <TabsContent value="structure" className="space-y-4 mt-4">
-                <div className="flex flex-col gap-6">
-                  {newCompany.facilities.map((facility, facilityIndex) => (
-                    <div key={facilityIndex} className="border rounded-lg p-4 relative">
-                      <div className="absolute top-2 right-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeFacility(facilityIndex)}
-                          className="h-6 w-6"
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-
-                      <div className="flex items-center gap-2 mb-4">
-                        <Building2 className="h-5 w-5 text-primary" />
-                        <h3 className="text-lg font-medium">Facility {facilityIndex + 1}</h3>
-                      </div>
-
-                      <div className="grid gap-4 mb-6">
-                        <div className="grid gap-2">
-                          <Label htmlFor={`facility-name-${facilityIndex}`}>Facility Name</Label>
-                          <Input
-                            id={`facility-name-${facilityIndex}`}
-                            placeholder="Enter facility name"
-                            value={facility.name}
-                            onChange={(e) => updateFacility(facilityIndex, "name", e.target.value)}
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor={`facility-address-${facilityIndex}`}>Facility Address</Label>
-                          <Textarea
-                            id={`facility-address-${facilityIndex}`}
-                            placeholder="Enter facility address"
-                            value={facility.address}
-                            onChange={(e) => updateFacility(facilityIndex, "address", e.target.value)}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="mb-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <Label className="text-base">Departments</Label>
-                          <Button variant="outline" size="sm" onClick={() => addDepartment(facilityIndex)}>
-                            <Plus className="mr-1 h-3 w-3" />
-                            Add Department
-                          </Button>
-                        </div>
-
-                        <div className="space-y-3 pl-4 border-l-2 border-muted">
-                          {facility.departments.map((dept, deptIndex) => (
-                            <div key={deptIndex} className="flex items-center gap-2">
-                              <Input
-                                placeholder="Department name"
-                                value={dept.name}
-                                onChange={(e) => updateDepartment(facilityIndex, deptIndex, e.target.value)}
-                                className="flex-1"
-                              />
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => removeDepartment(facilityIndex, deptIndex)}
-                                className="h-8 w-8"
-                              >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-
-                  <Button variant="outline" onClick={addFacility} className="mt-2">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Another Facility
-                  </Button>
+                <div className="grid gap-2">
+                  <Label htmlFor="contact-email">Contact Email</Label>
+                  <Input
+                    id="contact-email"
+                    type="email"
+                    placeholder="Enter contact email"
+                    value={newCompany.contactEmail}
+                    onChange={(e) => handleCompanyInputChange("contactEmail", e.target.value)}
+                  />
                 </div>
-              </TabsContent>
-            </Tabs>
-
-            <DialogFooter className="mt-6">
-              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="contact-phone">Contact Phone</Label>
+                  <Input
+                    id="contact-phone"
+                    placeholder="Enter contact phone"
+                    value={newCompany.contactPhone}
+                    onChange={(e) => handleCompanyInputChange("contactPhone", e.target.value)}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="company-status">Status</Label>
+                  <select
+                    id="company-status"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    value={newCompany.status}
+                    onChange={(e) => handleCompanyInputChange("status", e.target.value)}
+                  >
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsAddCompanyOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={() => setIsAddDialogOpen(false)}>Add Company</Button>
+              <Button
+                onClick={() => setIsAddCompanyOpen(false)}
+                disabled={!newCompany.name || !newCompany.contactName || !newCompany.contactEmail}
+              >
+                Add Company
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -552,33 +364,41 @@ export default function CompaniesPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{companies.length}</div>
+            <p className="text-xs text-muted-foreground">
+              {companies.filter((c) => c.status === "active").length} active
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Contracted</CardTitle>
-            <Building className="h-4 w-4 text-green-500" />
+            <CardTitle className="text-sm font-medium">Facilities</CardTitle>
+            <Building2 className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{companies.filter((c) => c.status === "contracted").length}</div>
+            <div className="text-2xl font-bold">{totalFacilities}</div>
+            <p className="text-xs text-muted-foreground">Across all companies</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Engaged</CardTitle>
-            <Building className="h-4 w-4 text-blue-500" />
+            <CardTitle className="text-sm font-medium">Departments</CardTitle>
+            <LayoutGrid className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{companies.filter((c) => c.status === "engaged").length}</div>
+            <div className="text-2xl font-bold">{totalDepartments}</div>
+            <p className="text-xs text-muted-foreground">Across all facilities</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Leads</CardTitle>
-            <Building className="h-4 w-4 text-amber-500" />
+            <CardTitle className="text-sm font-medium">Avg. Departments</CardTitle>
+            <LayoutGrid className="h-4 w-4 text-purple-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{companies.filter((c) => c.status === "lead").length}</div>
+            <div className="text-2xl font-bold">
+              {totalFacilities > 0 ? (totalDepartments / totalFacilities).toFixed(1) : "0"}
+            </div>
+            <p className="text-xs text-muted-foreground">Per facility</p>
           </CardContent>
         </Card>
       </div>
@@ -586,10 +406,9 @@ export default function CompaniesPage() {
       <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
         <div className="flex items-center justify-between">
           <TabsList>
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="contracted">Contracted</TabsTrigger>
-            <TabsTrigger value="engaged">Engaged</TabsTrigger>
-            <TabsTrigger value="lead">Leads</TabsTrigger>
+            <TabsTrigger value="all">All Companies</TabsTrigger>
+            <TabsTrigger value="active">Active</TabsTrigger>
+            <TabsTrigger value="inactive">Inactive</TabsTrigger>
           </TabsList>
 
           <div className="relative w-64">
@@ -613,11 +432,11 @@ export default function CompaniesPage() {
                     <TableRow>
                       <TableHead>Company Name</TableHead>
                       <TableHead>Contact Person</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead>Contact Email</TableHead>
                       <TableHead>Facilities</TableHead>
                       <TableHead>Departments</TableHead>
-                      <TableHead className="w-[100px]">Actions</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="w-[80px]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -631,11 +450,19 @@ export default function CompaniesPage() {
                       filteredCompanies.map((company) => (
                         <TableRow key={company.id}>
                           <TableCell className="font-medium">{company.name}</TableCell>
-                          <TableCell>{company.contactPerson}</TableCell>
-                          <TableCell>{company.email}</TableCell>
-                          <TableCell>{getStatusBadge(company.status)}</TableCell>
-                          <TableCell>{company.totalFacilities}</TableCell>
-                          <TableCell>{company.totalDepartments}</TableCell>
+                          <TableCell>{company.contactName}</TableCell>
+                          <TableCell>{company.contactEmail}</TableCell>
+                          <TableCell>{company.facilities.length}</TableCell>
+                          <TableCell>
+                            {company.facilities.reduce((total, facility) => total + facility.departments.length, 0)}
+                          </TableCell>
+                          <TableCell>
+                            {company.status === "active" ? (
+                              <Badge className="bg-green-500">Active</Badge>
+                            ) : (
+                              <Badge variant="secondary">Inactive</Badge>
+                            )}
+                          </TableCell>
                           <TableCell>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
@@ -646,26 +473,12 @@ export default function CompaniesPage() {
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                <DropdownMenuItem onClick={() => handleEdit(company)}>
+                                <DropdownMenuItem>
                                   <Pencil className="mr-2 h-4 w-4" />
-                                  Edit Company
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleViewStructure(company)}>
-                                  <FolderTree className="mr-2 h-4 w-4" />
-                                  View Structure
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem>
-                                  <MapPin className="mr-2 h-4 w-4" />
-                                  Manage Facilities
+                                  Edit
                                 </DropdownMenuItem>
                                 <DropdownMenuItem>
-                                  <Users className="mr-2 h-4 w-4" />
-                                  Manage Users
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => handleDelete(company)}>
-                                  <Trash2 className="mr-2 h-4 w-4 text-destructive" />
+                                  <Trash2 className="mr-2 h-4 w-4" />
                                   Delete
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
@@ -680,206 +493,321 @@ export default function CompaniesPage() {
             </CardContent>
           </Card>
         </TabsContent>
-        <TabsContent value="contracted" className="mt-0">
-          {/* Content for contracted tab - the base content will show filtered results */}
+        <TabsContent value="active" className="mt-0">
+          {/* Content for active tab - the base content will show filtered results */}
         </TabsContent>
-        <TabsContent value="engaged" className="mt-0">
-          {/* Content for engaged tab - the base content will show filtered results */}
-        </TabsContent>
-        <TabsContent value="lead" className="mt-0">
-          {/* Content for lead tab - the base content will show filtered results */}
+        <TabsContent value="inactive" className="mt-0">
+          {/* Content for inactive tab - the base content will show filtered results */}
         </TabsContent>
       </Tabs>
 
-      {/* Edit Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Edit Company</DialogTitle>
-            <DialogDescription>Update the details of the selected company.</DialogDescription>
-          </DialogHeader>
-          {selectedCompany && (
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="edit-name">Company Name</Label>
-                <Input id="edit-name" defaultValue={selectedCompany.name} />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="edit-address">Address</Label>
-                <Textarea id="edit-address" defaultValue={selectedCompany.address} />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="edit-contactPerson">Contact Person</Label>
-                  <Input id="edit-contactPerson" defaultValue={selectedCompany.contactPerson} />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="edit-email">Email</Label>
-                  <Input id="edit-email" type="email" defaultValue={selectedCompany.email} />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="edit-phone">Phone</Label>
-                  <Input id="edit-phone" defaultValue={selectedCompany.phone} />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="edit-status">Relationship Status</Label>
-                  <Select defaultValue={selectedCompany.status}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="lead">Lead</SelectItem>
-                      <SelectItem value="engaged">Engaged</SelectItem>
-                      <SelectItem value="contracted">Contracted</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+      {/* Company Structure Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Company Structure</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="mb-4 flex justify-between">
+            <p className="text-muted-foreground">Manage company facilities and departments</p>
+            <div className="flex gap-2">
+              <Dialog open={isAddFacilityOpen} onOpenChange={setIsAddFacilityOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm" disabled={!selectedCompany}>
+                    <Building2 className="mr-2 h-4 w-4" />
+                    Add Facility
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add New Facility</DialogTitle>
+                    <DialogDescription>
+                      Add a new facility to {selectedCompany?.name || "the selected company"}.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="facility-name">Facility Name</Label>
+                      <Input
+                        id="facility-name"
+                        placeholder="Enter facility name"
+                        value={newFacility.name}
+                        onChange={(e) => handleFacilityInputChange("name", e.target.value)}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="facility-location">Location</Label>
+                      <Input
+                        id="facility-location"
+                        placeholder="Enter facility location"
+                        value={newFacility.location}
+                        onChange={(e) => handleFacilityInputChange("location", e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsAddFacilityOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={() => setIsAddFacilityOpen(false)}
+                      disabled={!newFacility.name || !newFacility.location}
+                    >
+                      Add Facility
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              <Dialog open={isAddDepartmentOpen} onOpenChange={setIsAddDepartmentOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm" disabled={!selectedFacility}>
+                    <LayoutGrid className="mr-2 h-4 w-4" />
+                    Add Department
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add New Department</DialogTitle>
+                    <DialogDescription>
+                      Add a new department to {selectedFacility?.name || "the selected facility"}.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="department-name">Department Name</Label>
+                      <Input
+                        id="department-name"
+                        placeholder="Enter department name"
+                        value={newDepartment.name}
+                        onChange={(e) => handleDepartmentInputChange("name", e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsAddDepartmentOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={() => setIsAddDepartmentOpen(false)} disabled={!newDepartment.name}>
+                      Add Department
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={() => setIsEditDialogOpen(false)}>Save Changes</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
 
-      {/* View Structure Dialog */}
-      <Dialog open={isViewStructureDialogOpen} onOpenChange={setIsViewStructureDialogOpen}>
-        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Company Structure</DialogTitle>
-            <DialogDescription>
-              {selectedCompany
-                ? `View the organizational structure of ${selectedCompany.name}`
-                : "Company structure details"}
-            </DialogDescription>
-          </DialogHeader>
-
-          {selectedCompany && (
-            <div className="py-4">
-              <div className="mb-4">
-                <h3 className="text-lg font-semibold flex items-center">
-                  <Building className="mr-2 h-5 w-5 text-primary" />
-                  {selectedCompany.name}
-                </h3>
-                <p className="text-sm text-muted-foreground">{selectedCompany.address}</p>
-              </div>
-
-              {selectedCompany.facilities.length > 0 ? (
-                <div className="space-y-4">
-                  <h4 className="text-sm font-medium text-muted-foreground">Facilities and Departments</h4>
-                  <div className="pl-4 border-l-2 border-muted space-y-4">
-                    {selectedCompany.facilities.map((facility: any, index: number) => (
-                      <Collapsible key={facility.id} className="border rounded-md p-3">
-                        <CollapsibleTrigger className="flex items-center justify-between w-full">
-                          <div className="flex items-center">
-                            <Building2 className="mr-2 h-4 w-4 text-primary" />
-                            <span className="font-medium">{facility.name}</span>
-                          </div>
-                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                        </CollapsibleTrigger>
-                        <CollapsibleContent className="pt-3">
-                          <p className="text-sm text-muted-foreground mb-2">{facility.address}</p>
-
-                          <div className="mt-3 space-y-2">
-                            <h5 className="text-sm font-medium">Departments</h5>
-                            <div className="pl-4 border-l border-muted space-y-2">
-                              {facility.departments.map((dept: any) => (
-                                <div key={dept.id} className="flex items-center">
-                                  <LayoutGrid className="mr-2 h-4 w-4 text-muted-foreground" />
-                                  <span>{dept.name}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </CollapsibleContent>
-                      </Collapsible>
-                    ))}
+          <ScrollArea className="h-[500px]">
+            <div className="space-y-4">
+              {filteredCompanies.length === 0 ? (
+                <div className="flex h-40 items-center justify-center rounded-md border border-dashed">
+                  <div className="flex flex-col items-center text-center">
+                    <Building className="h-10 w-10 text-muted-foreground" />
+                    <h3 className="mt-4 text-lg font-semibold">No Companies</h3>
+                    <p className="mt-2 text-sm text-muted-foreground">Add a company to get started.</p>
                   </div>
                 </div>
               ) : (
-                <div className="text-center py-6 text-muted-foreground">
-                  No facilities or departments defined for this company.
-                </div>
+                filteredCompanies.map((company) => (
+                  <Collapsible
+                    key={company.id}
+                    open={expandedCompanies.includes(company.id)}
+                    className="rounded-md border"
+                  >
+                    <div className="flex items-center justify-between p-4">
+                      <div className="flex items-center">
+                        <CollapsibleTrigger
+                          onClick={() => toggleCompanyExpansion(company.id)}
+                          className="flex items-center"
+                        >
+                          {expandedCompanies.includes(company.id) ? (
+                            <ChevronDown className="mr-2 h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="mr-2 h-4 w-4" />
+                          )}
+                          <Building className="mr-2 h-4 w-4" />
+                          <div>
+                            <span className="font-medium">{company.name}</span>
+                            {company.status === "inactive" && (
+                              <Badge variant="outline" className="ml-2">
+                                Inactive
+                              </Badge>
+                            )}
+                          </div>
+                        </CollapsibleTrigger>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Badge variant="outline" className="ml-2">
+                          {company.facilities.length} Facilities
+                        </Badge>
+                        <Badge variant="outline" className="ml-2">
+                          {company.facilities.reduce((total, facility) => total + facility.departments.length, 0)}{" "}
+                          Departments
+                        </Badge>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            setSelectedCompany(company)
+                            setIsAddFacilityOpen(true)
+                          }}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    <CollapsibleContent>
+                      <div className="space-y-2 p-4 pt-0">
+                        <div className="mb-2 rounded-md bg-muted p-3">
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div>
+                              <div className="flex items-center">
+                                <MapPin className="mr-1 h-3 w-3 text-muted-foreground" />
+                                <span className="text-muted-foreground">Address:</span>
+                              </div>
+                              <p>{company.address}</p>
+                            </div>
+                            <div>
+                              <div className="flex items-center">
+                                <User className="mr-1 h-3 w-3 text-muted-foreground" />
+                                <span className="text-muted-foreground">Contact:</span>
+                              </div>
+                              <p>{company.contactName}</p>
+                              <div className="flex items-center mt-1">
+                                <Mail className="mr-1 h-3 w-3 text-muted-foreground" />
+                                <span>{company.contactEmail}</span>
+                              </div>
+                              <div className="flex items-center mt-1">
+                                <Phone className="mr-1 h-3 w-3 text-muted-foreground" />
+                                <span>{company.contactPhone}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {company.facilities.length === 0 ? (
+                          <div className="rounded-md border border-dashed p-4 text-center">
+                            <p className="text-sm text-muted-foreground">No facilities added</p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="mt-2"
+                              onClick={() => {
+                                setSelectedCompany(company)
+                                setIsAddFacilityOpen(true)
+                              }}
+                            >
+                              <Plus className="mr-2 h-4 w-4" />
+                              Add Facility
+                            </Button>
+                          </div>
+                        ) : (
+                          company.facilities.map((facility) => (
+                            <Collapsible
+                              key={facility.id}
+                              open={expandedFacilities.includes(facility.id)}
+                              className="rounded-md border"
+                            >
+                              <div className="flex items-center justify-between p-3">
+                                <div className="flex items-center">
+                                  <CollapsibleTrigger
+                                    onClick={() => toggleFacilityExpansion(facility.id)}
+                                    className="flex items-center"
+                                  >
+                                    {expandedFacilities.includes(facility.id) ? (
+                                      <ChevronDown className="mr-2 h-4 w-4" />
+                                    ) : (
+                                      <ChevronRight className="mr-2 h-4 w-4" />
+                                    )}
+                                    <Building2 className="mr-2 h-4 w-4 text-blue-500" />
+                                    <div>
+                                      <span className="font-medium">{facility.name}</span>
+                                      <span className="ml-2 text-sm text-muted-foreground">({facility.location})</span>
+                                    </div>
+                                  </CollapsibleTrigger>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  <Badge variant="outline">{facility.departments.length} Departments</Badge>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                      setSelectedCompany(company)
+                                      setSelectedFacility(facility)
+                                      setIsAddDepartmentOpen(true)
+                                    }}
+                                  >
+                                    <Plus className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+
+                              <CollapsibleContent>
+                                <div className="space-y-2 p-3 pt-0">
+                                  {facility.departments.length === 0 ? (
+                                    <div className="rounded-md border border-dashed p-3 text-center">
+                                      <p className="text-sm text-muted-foreground">No departments added</p>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="mt-2"
+                                        onClick={() => {
+                                          setSelectedCompany(company)
+                                          setSelectedFacility(facility)
+                                          setIsAddDepartmentOpen(true)
+                                        }}
+                                      >
+                                        <Plus className="mr-2 h-4 w-4" />
+                                        Add Department
+                                      </Button>
+                                    </div>
+                                  ) : (
+                                    <div className="rounded-md border">
+                                      <Table>
+                                        <TableHeader>
+                                          <TableRow>
+                                            <TableHead>Department Name</TableHead>
+                                            <TableHead className="text-right">Actions</TableHead>
+                                          </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                          {facility.departments.map((department) => (
+                                            <TableRow key={department.id}>
+                                              <TableCell>
+                                                <div className="flex items-center">
+                                                  <LayoutGrid className="mr-2 h-4 w-4 text-green-500" />
+                                                  <span>{department.name}</span>
+                                                </div>
+                                              </TableCell>
+                                              <TableCell className="text-right">
+                                                <Button variant="ghost" size="icon">
+                                                  <Pencil className="h-4 w-4" />
+                                                </Button>
+                                                <Button variant="ghost" size="icon">
+                                                  <Trash2 className="h-4 w-4 text-red-500" />
+                                                </Button>
+                                              </TableCell>
+                                            </TableRow>
+                                          ))}
+                                        </TableBody>
+                                      </Table>
+                                    </div>
+                                  )}
+                                </div>
+                              </CollapsibleContent>
+                            </Collapsible>
+                          ))
+                        )}
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                ))
               )}
             </div>
-          )}
-
-          <DialogFooter>
-            <Button onClick={() => setIsViewStructureDialogOpen(false)}>Close</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Dialog */}
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Company</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this company? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          {selectedCompany && (
-            <div className="py-4">
-              <p className="mb-2">You are about to delete the following company:</p>
-              <div className="rounded-md bg-muted p-4">
-                <p>
-                  <strong>Company Name:</strong> {selectedCompany.name}
-                </p>
-                <p>
-                  <strong>Contact Person:</strong> {selectedCompany.contactPerson}
-                </p>
-                <p>
-                  <strong>Email:</strong> {selectedCompany.email}
-                </p>
-                {(selectedCompany.totalFacilities > 0 ||
-                  selectedCompany.users > 0 ||
-                  selectedCompany.edgeGateways > 0 ||
-                  selectedCompany.smartMeters > 0) && (
-                  <div className="mt-2 text-destructive">
-                    <p className="font-semibold">Warning:</p>
-                    <ul className="list-disc pl-5 space-y-1">
-                      {selectedCompany.totalFacilities > 0 && (
-                        <li>This company has {selectedCompany.totalFacilities} facilities</li>
-                      )}
-                      {selectedCompany.totalDepartments > 0 && (
-                        <li>This company has {selectedCompany.totalDepartments} departments</li>
-                      )}
-                      {selectedCompany.users > 0 && <li>This company has {selectedCompany.users} users</li>}
-                      {selectedCompany.edgeGateways > 0 && (
-                        <li>This company has {selectedCompany.edgeGateways} assigned edge gateways</li>
-                      )}
-                      {selectedCompany.smartMeters > 0 && (
-                        <li>This company has {selectedCompany.smartMeters} assigned smart meters</li>
-                      )}
-                    </ul>
-                    <p className="mt-2">Deleting this company will also delete all associated data.</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={() => setIsDeleteDialogOpen(false)}>
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </ScrollArea>
+        </CardContent>
+      </Card>
     </div>
   )
-}
-
-function Link(props: React.AnchorHTMLAttributes<HTMLAnchorElement> & { children: React.ReactNode }) {
-  return <a {...props} className="flex items-center" />
 }
 

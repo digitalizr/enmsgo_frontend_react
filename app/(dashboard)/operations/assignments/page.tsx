@@ -30,7 +30,6 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { Checkbox } from "@/components/ui/checkbox"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
 // Sample data
@@ -401,76 +400,6 @@ export default function AssignmentsPage() {
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
-
-              <Dialog open={isAssignSmartMeterOpen} onOpenChange={setIsAssignSmartMeterOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" disabled={!selectedUser || !selectedEdgeGateway}>
-                    <CircuitBoard className="mr-2 h-4 w-4" />
-                    Assign Smart Meters
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[600px]">
-                  <DialogHeader>
-                    <DialogTitle>Assign Smart Meters</DialogTitle>
-                    <DialogDescription>Select smart meters to assign to the selected edge gateway.</DialogDescription>
-                  </DialogHeader>
-                  <div className="py-4">
-                    <div className="mb-4">
-                      <Label className="mb-2 block">Selected Edge Gateway</Label>
-                      {selectedEdgeGateway && (
-                        <div className="rounded-md border p-3 bg-muted">
-                          <div className="flex items-center">
-                            <Server className="mr-2 h-4 w-4 text-blue-500" />
-                            <span className="font-medium">{getEdgeGatewayById(selectedEdgeGateway)?.name}</span>
-                          </div>
-                          <span className="text-sm text-muted-foreground">
-                            Serial: {getEdgeGatewayById(selectedEdgeGateway)?.serial}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    <Label className="mb-2 block">Available Smart Meters</Label>
-                    <div className="mb-2 text-sm text-muted-foreground">
-                      Selected: {selectedSmartMeters.length} smart meters
-                    </div>
-                    <ScrollArea className="h-[300px] rounded-md border">
-                      <div className="p-4 space-y-2">
-                        {availableSmartMeters.length === 0 ? (
-                          <p className="text-center text-muted-foreground py-4">No available smart meters</p>
-                        ) : (
-                          availableSmartMeters.map((meter) => (
-                            <div key={meter.id} className="flex items-center space-x-2 rounded-md border p-3">
-                              <Checkbox
-                                id={`meter-${meter.id}`}
-                                checked={selectedSmartMeters.includes(meter.id)}
-                                onCheckedChange={() => handleSmartMeterChange(meter.id)}
-                              />
-                              <div className="flex flex-1 items-center justify-between">
-                                <div className="flex flex-col">
-                                  <label htmlFor={`meter-${meter.id}`} className="flex cursor-pointer items-center">
-                                    <CircuitBoard className="mr-2 h-4 w-4 text-green-500" />
-                                    <span className="font-medium">{meter.name}</span>
-                                  </label>
-                                  <span className="text-sm text-muted-foreground">Serial: {meter.serial}</span>
-                                </div>
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </ScrollArea>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsAssignSmartMeterOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button onClick={handleAssignSmartMeters} disabled={selectedSmartMeters.length === 0}>
-                      Assign
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
             </div>
           </CardHeader>
           <CardContent>
@@ -584,6 +513,26 @@ export default function AssignmentsPage() {
                                       }}
                                     >
                                       <Plus className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="text-red-500 hover:text-red-700 hover:bg-red-100"
+                                      onClick={() => {
+                                        // Remove this gateway from the user's assignments
+                                        const updatedAssignments = [...assignments]
+                                        const userIndex = updatedAssignments.findIndex(
+                                          (a) => a.userId === assignment.userId,
+                                        )
+                                        if (userIndex !== -1) {
+                                          updatedAssignments[userIndex].edgeGateways = updatedAssignments[
+                                            userIndex
+                                          ].edgeGateways.filter((g) => g.id !== gateway.id)
+                                          setAssignments(updatedAssignments)
+                                        }
+                                      }}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
                                     </Button>
                                   </div>
                                 </div>

@@ -1,9 +1,28 @@
 "use client"
 
+import type React from "react"
+
 import { useState } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { BarChart, Boxes, Building2, Cog, Home, LayoutDashboard, Link2, LogOut, Users } from "lucide-react"
+import { usePathname, useRouter } from "next/navigation"
+import {
+  AlertTriangle,
+  BarChart3,
+  Boxes,
+  Building2,
+  ChevronDown,
+  ChevronRight,
+  Cog,
+  Contact,
+  FileText,
+  Home,
+  LayoutDashboard,
+  Link2,
+  LogOut,
+  Sparkles,
+  Users,
+  Zap,
+} from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -21,15 +40,32 @@ import {
 import { ModeToggle } from "@/components/mode-toggle"
 import { useAuth } from "@/contexts/auth-context"
 
+interface NavItem {
+  title: string
+  href?: string
+  icon: React.ReactNode
+  subItems?: { title: string; href: string; icon?: React.ReactNode }[]
+}
+
 export function MainSidebar() {
   const [expanded, setExpanded] = useState(true)
+  const [openSubMenus, setOpenSubMenus] = useState<string[]>([])
   const pathname = usePathname()
+  const router = useRouter()
   const { signOut } = useAuth()
 
   const isCustomerPath = pathname?.includes("/customer")
   const isOperationsPath = pathname?.includes("/operations")
 
-  const customerLinks = [
+  const toggleSubMenu = (title: string) => {
+    setOpenSubMenus((prev) => (prev.includes(title) ? prev.filter((item) => item !== title) : [...prev, title]))
+  }
+
+  const isSubMenuOpen = (title: string) => {
+    return openSubMenus.includes(title)
+  }
+
+  const customerLinks: NavItem[] = [
     {
       title: "Dashboard",
       href: "/customer/dashboard",
@@ -38,32 +74,32 @@ export function MainSidebar() {
     {
       title: "Energy Usage",
       href: "/customer/energy-usage",
-      icon: <BarChart className="h-4 w-4" />,
+      icon: <Zap className="h-4 w-4" />,
     },
     {
       title: "AI Insights",
       href: "/customer/ai-insights",
-      icon: <Boxes className="h-4 w-4" />,
+      icon: <Sparkles className="h-4 w-4" />,
     },
     {
       title: "Alerts",
       href: "/customer/alerts",
-      icon: <Boxes className="h-4 w-4" />,
+      icon: <AlertTriangle className="h-4 w-4" />,
     },
     {
       title: "Reports",
       href: "/customer/reports",
-      icon: <Boxes className="h-4 w-4" />,
+      icon: <FileText className="h-4 w-4" />,
     },
     {
       title: "Contact Points",
       href: "/customer/contact-points",
-      icon: <Boxes className="h-4 w-4" />,
+      icon: <Contact className="h-4 w-4" />,
     },
     {
       title: "Analytics",
       href: "/customer/analytics",
-      icon: <Boxes className="h-4 w-4" />,
+      icon: <BarChart3 className="h-4 w-4" />,
     },
     {
       title: "Settings",
@@ -72,7 +108,7 @@ export function MainSidebar() {
     },
   ]
 
-  const operationsLinks = [
+  const operationsLinks: NavItem[] = [
     {
       title: "Dashboard",
       href: "/operations/dashboard",
@@ -85,10 +121,12 @@ export function MainSidebar() {
         {
           title: "Smart Meters",
           href: "/operations/inventory/smart-meters",
+          icon: <Zap className="h-4 w-4" />,
         },
         {
           title: "Edge Gateways",
           href: "/operations/inventory/edge-gateways",
+          icon: <Boxes className="h-4 w-4" />,
         },
       ],
     },
@@ -110,7 +148,7 @@ export function MainSidebar() {
     {
       title: "Analytics",
       href: "/operations/analytics",
-      icon: <BarChart className="h-4 w-4" />,
+      icon: <BarChart3 className="h-4 w-4" />,
     },
     {
       title: "Settings",
@@ -121,11 +159,20 @@ export function MainSidebar() {
 
   const links = isCustomerPath ? customerLinks : operationsLinks
 
+  const handleSignOut = async () => {
+    try {
+      await signOut()
+      router.push("/signin")
+    } catch (error) {
+      console.error("Sign out error:", error)
+    }
+  }
+
   return (
     <Sidebar expanded={expanded} onToggle={() => setExpanded(!expanded)}>
       <SidebarHeader>
         <SidebarHeaderTitle>
-          <Boxes className="h-6 w-6" />
+          <Zap className="h-6 w-6 text-yellow-500" />
           {expanded && <span>Energy Management</span>}
         </SidebarHeaderTitle>
         <SidebarMenuButton expanded={expanded} onToggle={() => setExpanded(!expanded)} />
@@ -135,21 +182,39 @@ export function MainSidebar() {
           <SidebarMenuTitle>{expanded && (isCustomerPath ? "Customer" : "Operations")}</SidebarMenuTitle>
           {links.map((link, index) => {
             if (link.subItems) {
+              const isOpen = isSubMenuOpen(link.title)
+              const isActive = link.subItems.some((item) => pathname === item.href)
+
               return (
                 <div key={index} className="space-y-1">
-                  <SidebarMenuItem icon={link.icon} label={link.title} expanded={expanded} />
-                  {expanded && (
+                  <div
+                    className={cn(
+                      "flex cursor-pointer items-center justify-between rounded-md px-3 py-2 text-sm",
+                      isActive && "bg-accent text-accent-foreground",
+                      !isActive && "hover:bg-accent/50 hover:text-accent-foreground",
+                    )}
+                    onClick={() => toggleSubMenu(link.title)}
+                  >
+                    <div className="flex items-center gap-3">
+                      {link.icon}
+                      {expanded && <span>{link.title}</span>}
+                    </div>
+                    {expanded && (isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />)}
+                  </div>
+
+                  {expanded && isOpen && (
                     <div className="ml-4 space-y-1">
                       {link.subItems.map((subItem, subIndex) => (
                         <Link
                           key={subIndex}
                           href={subItem.href}
                           className={cn(
-                            "block rounded-md px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground",
+                            "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground",
                             pathname === subItem.href && "bg-accent text-accent-foreground",
                           )}
                         >
-                          {subItem.title}
+                          {subItem.icon}
+                          <span>{subItem.title}</span>
                         </Link>
                       ))}
                     </div>
@@ -158,7 +223,7 @@ export function MainSidebar() {
               )
             }
             return (
-              <Link key={index} href={link.href}>
+              <Link key={index} href={link.href || "#"}>
                 <SidebarMenuItem
                   active={pathname === link.href}
                   icon={link.icon}
@@ -193,10 +258,14 @@ export function MainSidebar() {
       <SidebarFooter className="flex-col gap-2">
         <div className="flex w-full items-center justify-between">
           <ModeToggle />
-          {expanded && (
-            <Button variant="outline" size="sm" onClick={signOut}>
+          {expanded ? (
+            <Button variant="outline" size="sm" onClick={handleSignOut}>
               <LogOut className="mr-2 h-4 w-4" />
               Sign Out
+            </Button>
+          ) : (
+            <Button variant="outline" size="icon" onClick={handleSignOut}>
+              <LogOut className="h-4 w-4" />
             </Button>
           )}
         </div>

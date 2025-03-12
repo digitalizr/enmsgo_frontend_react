@@ -253,7 +253,7 @@ export default function UsersPage() {
   const [newUser, setNewUser] = useState({
     name: "",
     email: "",
-    role: "viewer",
+    role: "operator",
     status: "active",
     companyId: "",
     facilityId: "",
@@ -266,7 +266,7 @@ export default function UsersPage() {
       setNewUser({
         name: "",
         email: "",
-        role: "viewer",
+        role: "operator",
         status: "active",
         companyId: "",
         facilityId: "",
@@ -383,12 +383,15 @@ export default function UsersPage() {
 
   const getRoleBadge = (role: string) => {
     switch (role) {
-      case "admin":
-        return <Badge className="bg-purple-500">Admin</Badge>
+      case "operator":
+        return <Badge className="bg-green-500">Operator</Badge>
       case "manager":
         return <Badge className="bg-blue-500">Manager</Badge>
+      // Handle legacy roles that might exist in the data
+      case "admin":
+        return <Badge className="bg-purple-500">Admin</Badge>
       case "viewer":
-        return <Badge className="bg-green-500">Viewer</Badge>
+        return <Badge className="bg-gray-500">Viewer</Badge>
       default:
         return <Badge variant="outline">Unknown</Badge>
     }
@@ -454,9 +457,8 @@ export default function UsersPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="operator">Operator</SelectItem>
                       <SelectItem value="manager">Manager</SelectItem>
-                      <SelectItem value="viewer">Viewer</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -736,9 +738,8 @@ export default function UsersPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="operator">Operator</SelectItem>
                       <SelectItem value="manager">Manager</SelectItem>
-                      <SelectItem value="viewer">Viewer</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

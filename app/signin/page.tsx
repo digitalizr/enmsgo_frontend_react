@@ -68,8 +68,8 @@ export default function SignInPage() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-4 md:p-8">
       <Link href="/" className="absolute left-4 top-4 md:left-8 md:top-8 flex items-center gap-2">
-        <Zap className="h-6 w-6 text-primary" />
-        <span className="font-bold text-xl">EnergyMS Go</span>
+        <Zap className="h-10 w-10 text-yellow-500" />
+        <span className="font-bold text-xl">Energy Management System</span>
       </Link>
 
       <Card className="mx-auto w-full max-w-md">

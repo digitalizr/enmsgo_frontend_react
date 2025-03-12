@@ -51,7 +51,7 @@ export default function LandingPage() {
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
         <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center gap-2">
-            <Zap className="h-6 w-6 text-primary" />
+            <Zap className="h-12 w-12 text-yellow-500" />
             <span className="font-bold text-xl">EnergyMS Go</span>
           </div>
 
@@ -182,9 +182,7 @@ export default function LandingPage() {
                 <span className="flex h-2 w-2 rounded-full bg-green-500 mr-2"></span>
                 <span className="font-medium">6 Months Free Trial</span>
               </div>
-              <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl lg:text-7xl">
-                Smart Energy Management for Modern Businesses
-              </h1>
+              <h1 className="text-4xl font-bold">Energy Management System</h1>
               <p className="text-xl text-muted-foreground max-w-[600px]">
                 Reduce energy costs by up to 30% with our AI-powered platform and smart metering technology. No upfront
                 costs, free installation.
@@ -897,7 +895,7 @@ export default function LandingPage() {
           <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <Zap className="h-6 w-6 text-primary" />
+                <Zap className="h-12 w-12 text-yellow-500" />
                 <span className="font-bold text-xl">EnergyMS Go</span>
               </div>
               <p className="text-sm text-muted-foreground mb-4">
