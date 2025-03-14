@@ -22,6 +22,7 @@ import {
   Sparkles,
   Users,
   Zap,
+  CreditCard,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -154,6 +155,12 @@ export function MainSidebar() {
       title: "Settings",
       href: "/operations/settings",
       icon: <Cog className="h-4 w-4" />,
+    },
+    {
+      title: "Billing",
+      href: "/operations/billing",
+      icon: <CreditCard className="h-4 w-4" />,
+      variant: "default",
     },
   ]
 

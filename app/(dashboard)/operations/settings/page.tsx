@@ -11,7 +11,6 @@ import {
   Database,
   Save,
   Globe,
-  Server,
   RefreshCw,
   Mail,
   Phone,
@@ -20,6 +19,7 @@ import {
   Download,
   Trash,
   AlertTriangle,
+  UserPlus,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -38,6 +38,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Checkbox } from "@/components/ui/checkbox"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 
 // Sample data for users
 const usersData = [
@@ -109,6 +119,40 @@ const integrationsData = [
 
 export default function OperationsSettingsPage() {
   const [isEditing, setIsEditing] = useState(false)
+  const [isAddTeamMemberDialogOpen, setIsAddTeamMemberDialogOpen] = useState(false)
+  const [newTeamMember, setNewTeamMember] = useState({
+    name: "",
+    email: "",
+    role: "operator",
+    sendInvite: true,
+    generatePassword: true,
+    password: "",
+  })
+  const [showPassword, setShowPassword] = useState(false)
+
+  const handleAddTeamMember = () => {
+    // In a real application, this would send an API request
+    console.log("Adding new team member:", newTeamMember)
+    setIsAddTeamMemberDialogOpen(false)
+    // Reset form
+    setNewTeamMember({
+      name: "",
+      email: "",
+      role: "operator",
+      sendInvite: true,
+      generatePassword: true,
+      password: "",
+    })
+  }
+
+  const generateRandomPassword = () => {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()"
+    let password = ""
+    for (let i = 0; i < 12; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length))
+    }
+    setNewTeamMember({ ...newTeamMember, password })
+  }
 
   return (
     <div className="flex flex-col gap-4 p-4 md:p-8">
@@ -125,9 +169,9 @@ export default function OperationsSettingsPage() {
             <Settings className="mr-2 h-4 w-4" />
             General
           </TabsTrigger>
-          <TabsTrigger value="users">
+          <TabsTrigger value="teams">
             <Users className="mr-2 h-4 w-4" />
-            Users
+            Teams
           </TabsTrigger>
           <TabsTrigger value="integrations">
             <Globe className="mr-2 h-4 w-4" />
@@ -314,17 +358,141 @@ export default function OperationsSettingsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="users" className="space-y-4">
+        <TabsContent value="teams" className="space-y-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
               <div>
-                <CardTitle>User Management</CardTitle>
-                <CardDescription>Manage user accounts and permissions</CardDescription>
+                <CardTitle>Team Management</CardTitle>
+                <CardDescription>Manage team members and their roles</CardDescription>
               </div>
-              <Button>
-                <Users className="mr-2 h-4 w-4" />
-                Add User
-              </Button>
+              <Dialog open={isAddTeamMemberDialogOpen} onOpenChange={setIsAddTeamMemberDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Add Team Member
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[500px]">
+                  <DialogHeader>
+                    <DialogTitle>Add Team Member</DialogTitle>
+                    <DialogDescription>
+                      Add a new team member to your organization. They will receive an email invitation.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="name">Full Name</Label>
+                        <Input
+                          id="name"
+                          placeholder="John Doe"
+                          value={newTeamMember.name}
+                          onChange={(e) => setNewTeamMember({ ...newTeamMember, name: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="email">Email Address</Label>
+                        <Input
+                          id="email"
+                          type="email"
+                          placeholder="john.doe@example.com"
+                          value={newTeamMember.email}
+                          onChange={(e) => setNewTeamMember({ ...newTeamMember, email: e.target.value })}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="role">Role</Label>
+                      <Select
+                        value={newTeamMember.role}
+                        onValueChange={(value) => setNewTeamMember({ ...newTeamMember, role: value })}
+                      >
+                        <SelectTrigger id="role">
+                          <SelectValue placeholder="Select role" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="admin">Administrator</SelectItem>
+                          <SelectItem value="operator">Operator</SelectItem>
+                          <SelectItem value="technician">Technician</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        {newTeamMember.role === "admin"
+                          ? "Full access to all system features and settings"
+                          : newTeamMember.role === "operator"
+                            ? "Access to operations features and limited settings"
+                            : "Access to device management and monitoring features"}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="send-invite"
+                        checked={newTeamMember.sendInvite}
+                        onCheckedChange={(checked) =>
+                          setNewTeamMember({ ...newTeamMember, sendInvite: checked === true })
+                        }
+                      />
+                      <Label htmlFor="send-invite">Send email invitation</Label>
+                    </div>
+
+                    <Separator />
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="password">Initial Password</Label>
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="generate-password"
+                            checked={newTeamMember.generatePassword}
+                            onCheckedChange={(checked) => {
+                              const isChecked = checked === true
+                              setNewTeamMember({ ...newTeamMember, generatePassword: isChecked })
+                              if (isChecked) generateRandomPassword()
+                            }}
+                          />
+                          <Label htmlFor="generate-password" className="text-sm">
+                            Generate random password
+                          </Label>
+                        </div>
+                      </div>
+                      <div className="flex space-x-2">
+                        <div className="relative flex-1">
+                          <Input
+                            id="password"
+                            type={showPassword ? "text" : "password"}
+                            value={newTeamMember.password}
+                            onChange={(e) => setNewTeamMember({ ...newTeamMember, password: e.target.value })}
+                            disabled={newTeamMember.generatePassword}
+                          />
+                          <button
+                            type="button"
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                            onClick={() => setShowPassword(!showPassword)}
+                          >
+                            {showPassword ? "Hide" : "Show"}
+                          </button>
+                        </div>
+                        {newTeamMember.generatePassword && (
+                          <Button type="button" variant="outline" onClick={generateRandomPassword}>
+                            Regenerate
+                          </Button>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        The user will be required to change their password on first login
+                      </p>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsAddTeamMemberDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={handleAddTeamMember}>Add Team Member</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </CardHeader>
             <CardContent>
               <div className="rounded-md border">
@@ -344,7 +512,21 @@ export default function OperationsSettingsPage() {
                       <TableRow key={user.id}>
                         <TableCell className="font-medium">{user.name}</TableCell>
                         <TableCell>{user.email}</TableCell>
-                        <TableCell>{user.role}</TableCell>
+                        <TableCell>
+                          {user.role === "Administrator" ? (
+                            <Badge variant="outline" className="bg-blue-500/10 text-blue-700">
+                              Admin
+                            </Badge>
+                          ) : user.role === "Operations Manager" ? (
+                            <Badge variant="outline" className="bg-green-500/10 text-green-700">
+                              Operator
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-orange-500/10 text-orange-700">
+                              Technician
+                            </Badge>
+                          )}
+                        </TableCell>
                         <TableCell>
                           {user.status === "active" ? (
                             <Badge variant="outline" className="bg-green-500/10 text-green-700 dark:text-green-400">
@@ -397,32 +579,144 @@ export default function OperationsSettingsPage() {
               <div className="space-y-4">
                 <div className="rounded-lg border p-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="font-medium">Administrator</h3>
+                    <h3 className="font-medium">Admin</h3>
                     <Badge variant="outline" className="bg-blue-500/10 text-blue-700 dark:text-blue-400">
                       System Role
                     </Badge>
                   </div>
                   <p className="text-sm text-muted-foreground mt-1">Full access to all system features and settings</p>
+                  <div className="mt-4 grid grid-cols-3 gap-2">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="admin-users" defaultChecked />
+                      <label
+                        htmlFor="admin-users"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        User Management
+                      </label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="admin-devices" defaultChecked />
+                      <label
+                        htmlFor="admin-devices"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        Device Management
+                      </label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="admin-companies" defaultChecked />
+                      <label
+                        htmlFor="admin-companies"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        Company Management
+                      </label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="admin-billing" defaultChecked />
+                      <label
+                        htmlFor="admin-billing"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        Billing & Invoices
+                      </label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="admin-settings" defaultChecked />
+                      <label
+                        htmlFor="admin-settings"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        System Settings
+                      </label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="admin-reports" defaultChecked />
+                      <label
+                        htmlFor="admin-reports"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        Reports & Analytics
+                      </label>
+                    </div>
+                  </div>
                   <div className="mt-2 flex justify-end">
                     <Button variant="outline" size="sm">
-                      View Permissions
+                      Save Changes
                     </Button>
                   </div>
                 </div>
 
                 <div className="rounded-lg border p-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="font-medium">Operations Manager</h3>
-                    <Badge variant="outline" className="bg-blue-500/10 text-blue-700 dark:text-blue-400">
+                    <h3 className="font-medium">Operator</h3>
+                    <Badge variant="outline" className="bg-green-500/10 text-green-700 dark:text-green-400">
                       System Role
                     </Badge>
                   </div>
                   <p className="text-sm text-muted-foreground mt-1">
                     Access to operations features and limited settings
                   </p>
+                  <div className="mt-4 grid grid-cols-3 gap-2">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="operator-users" />
+                      <label
+                        htmlFor="operator-users"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        User Management
+                      </label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="operator-devices" defaultChecked />
+                      <label
+                        htmlFor="operator-devices"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        Device Management
+                      </label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="operator-companies" defaultChecked />
+                      <label
+                        htmlFor="operator-companies"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        Company Management
+                      </label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="operator-billing" />
+                      <label
+                        htmlFor="operator-billing"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        Billing & Invoices
+                      </label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="operator-settings" />
+                      <label
+                        htmlFor="operator-settings"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        System Settings
+                      </label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="operator-reports" defaultChecked />
+                      <label
+                        htmlFor="operator-reports"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        Reports & Analytics
+                      </label>
+                    </div>
+                  </div>
                   <div className="mt-2 flex justify-end">
                     <Button variant="outline" size="sm">
-                      View Permissions
+                      Save Changes
                     </Button>
                   </div>
                 </div>
@@ -430,33 +724,72 @@ export default function OperationsSettingsPage() {
                 <div className="rounded-lg border p-4">
                   <div className="flex items-center justify-between">
                     <h3 className="font-medium">Technician</h3>
-                    <Badge variant="outline" className="bg-blue-500/10 text-blue-700 dark:text-blue-400">
+                    <Badge variant="outline" className="bg-orange-500/10 text-orange-700 dark:text-orange-400">
                       System Role
                     </Badge>
                   </div>
                   <p className="text-sm text-muted-foreground mt-1">
                     Access to device management and monitoring features
                   </p>
+                  <div className="mt-4 grid grid-cols-3 gap-2">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="tech-users" />
+                      <label
+                        htmlFor="tech-users"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        User Management
+                      </label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="tech-devices" defaultChecked />
+                      <label
+                        htmlFor="tech-devices"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        Device Management
+                      </label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="tech-companies" />
+                      <label
+                        htmlFor="tech-companies"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        Company Management
+                      </label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="tech-billing" />
+                      <label
+                        htmlFor="tech-billing"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        Billing & Invoices
+                      </label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="tech-settings" />
+                      <label
+                        htmlFor="tech-settings"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        System Settings
+                      </label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="tech-reports" />
+                      <label
+                        htmlFor="tech-reports"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        Reports & Analytics
+                      </label>
+                    </div>
+                  </div>
                   <div className="mt-2 flex justify-end">
                     <Button variant="outline" size="sm">
-                      View Permissions
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="rounded-lg border p-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-medium">Support</h3>
-                    <Badge variant="outline" className="bg-blue-500/10 text-blue-700 dark:text-blue-400">
-                      System Role
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Access to customer support features and limited data
-                  </p>
-                  <div className="mt-2 flex justify-end">
-                    <Button variant="outline" size="sm">
-                      View Permissions
+                      Save Changes
                     </Button>
                   </div>
                 </div>
@@ -586,70 +919,208 @@ export default function OperationsSettingsPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Third-Party Services</CardTitle>
-              <CardDescription>Configure connections to external services</CardDescription>
+              <CardTitle>Gateway Providers</CardTitle>
+              <CardDescription>Configure SMS, Email, and Payment gateway providers</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="rounded-lg border p-4">
+            <CardContent className="space-y-6">
+              {/* SMS Gateway Configuration */}
+              <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-md border bg-muted">
-                      <Server className="h-5 w-5" />
+                  <h3 className="text-lg font-medium">SMS Gateway</h3>
+                  <Switch id="sms-gateway-enabled" defaultChecked />
+                </div>
+
+                <div className="rounded-lg border p-4">
+                  <div className="grid gap-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="sms-provider">Provider</Label>
+                        <Select defaultValue="twilio">
+                          <SelectTrigger id="sms-provider">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="twilio">Twilio</SelectItem>
+                            <SelectItem value="messagebird">MessageBird</SelectItem>
+                            <SelectItem value="vonage">Vonage (Nexmo)</SelectItem>
+                            <SelectItem value="aws-sns">AWS SNS</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="sms-region">Region</Label>
+                        <Select defaultValue="us">
+                          <SelectTrigger id="sms-region">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="us">United States</SelectItem>
+                            <SelectItem value="eu">Europe</SelectItem>
+                            <SelectItem value="asia">Asia Pacific</SelectItem>
+                            <SelectItem value="global">Global</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-medium">Weather Service</h3>
-                      <p className="text-sm text-muted-foreground">Integrate weather data for energy forecasting</p>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="sms-api-key">API Key</Label>
+                      <Input id="sms-api-key" type="password" value="sk_live_51Hb3U5JK8iUtr9Xj5tFQFqTJ" />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="sms-api-secret">API Secret</Label>
+                      <Input id="sms-api-secret" type="password" value="••••••••••••••••••••••••••••••" />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="sms-from">Default Sender ID</Label>
+                      <Input id="sms-from" value="EnergyMS" />
+                    </div>
+
+                    <div className="flex justify-end">
+                      <Button variant="outline" size="sm">
+                        Test Connection
+                      </Button>
                     </div>
                   </div>
-                  <Switch defaultChecked />
                 </div>
               </div>
 
-              <div className="rounded-lg border p-4">
+              {/* Email Gateway Configuration */}
+              <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-md border bg-muted">
-                      <Globe className="h-5 w-5" />
+                  <h3 className="text-lg font-medium">Email Gateway</h3>
+                  <Switch id="email-gateway-enabled" defaultChecked />
+                </div>
+
+                <div className="rounded-lg border p-4">
+                  <div className="grid gap-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="email-provider">Provider</Label>
+                        <Select defaultValue="sendgrid">
+                          <SelectTrigger id="email-provider">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="sendgrid">SendGrid</SelectItem>
+                            <SelectItem value="mailchimp">Mailchimp</SelectItem>
+                            <SelectItem value="aws-ses">AWS SES</SelectItem>
+                            <SelectItem value="smtp">Custom SMTP</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="email-region">Region</Label>
+                        <Select defaultValue="us">
+                          <SelectTrigger id="email-region">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="us">United States</SelectItem>
+                            <SelectItem value="eu">Europe</SelectItem>
+                            <SelectItem value="asia">Asia Pacific</SelectItem>
+                            <SelectItem value="global">Global</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-medium">Energy Price API</h3>
-                      <p className="text-sm text-muted-foreground">Real-time energy pricing data</p>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="email-api-key">API Key</Label>
+                      <Input id="email-api-key" type="password" value="SG.pKyYRIK9QrOdxjRQQgQYoQ.y5n9HjgFTwZpV0K" />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="email-from">From Email</Label>
+                        <Input id="email-from" type="email" value="notifications@energyms.com" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="email-from-name">From Name</Label>
+                        <Input id="email-from-name" value="Energy Management System" />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end">
+                      <Button variant="outline" size="sm">
+                        Test Connection
+                      </Button>
                     </div>
                   </div>
-                  <Switch defaultChecked />
                 </div>
               </div>
 
-              <div className="rounded-lg border p-4">
+              {/* Payment Gateway Configuration */}
+              <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-md border bg-muted">
-                      <Mail className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h3 className="font-medium">Email Service</h3>
-                      <p className="text-sm text-muted-foreground">Email notifications and reports</p>
-                    </div>
-                  </div>
-                  <Switch defaultChecked />
+                  <h3 className="text-lg font-medium">Payment Gateway</h3>
+                  <Switch id="payment-gateway-enabled" defaultChecked />
                 </div>
-              </div>
 
-              <div className="rounded-lg border p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-md border bg-muted">
-                      <Phone className="h-5 w-5" />
+                <div className="rounded-lg border p-4">
+                  <div className="grid gap-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="payment-provider">Provider</Label>
+                        <Select defaultValue="stripe">
+                          <SelectTrigger id="payment-provider">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="stripe">Stripe</SelectItem>
+                            <SelectItem value="paypal">PayPal</SelectItem>
+                            <SelectItem value="square">Square</SelectItem>
+                            <SelectItem value="authorize">Authorize.net</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="payment-mode">Mode</Label>
+                        <Select defaultValue="test">
+                          <SelectTrigger id="payment-mode">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="test">Test Mode</SelectItem>
+                            <SelectItem value="live">Live Mode</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-medium">SMS Gateway</h3>
-                      <p className="text-sm text-muted-foreground">SMS notifications for alerts</p>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="payment-api-key">API Key</Label>
+                      <Input id="payment-api-key" type="password" value="pk_test_51Hb3U5JK8iUtr9XjTgzCkMvAgqUDv" />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="payment-api-secret">API Secret</Label>
+                      <Input id="payment-api-secret" type="password" value="••••••••••••••••••••••••••••••" />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="payment-webhook">Webhook URL</Label>
+                      <Input id="payment-webhook" value="https://energyms.com/api/webhooks/payment" />
+                    </div>
+
+                    <div className="flex justify-end">
+                      <Button variant="outline" size="sm">
+                        Test Connection
+                      </Button>
                     </div>
                   </div>
-                  <Switch />
                 </div>
               </div>
             </CardContent>
+            <CardFooter className="flex justify-end gap-2">
+              <Button variant="outline">Cancel</Button>
+              <Button>
+                <Save className="mr-2 h-4 w-4" />
+                Save Gateway Settings
+              </Button>
+            </CardFooter>
           </Card>
         </TabsContent>
 
@@ -825,7 +1296,9 @@ export default function OperationsSettingsPage() {
                   rows={4}
                   defaultValue="[EnergyMS] Alert: {{alert_type}} - {{alert_message}}\n\nDevice: {{device_name}}\nTime: {{timestamp}}\n\nView details: {{alert_url}}"
                 />
-                <p className="text-xs text-muted-foreground">Use {'{{'} variable {'}}'} placeholders for dynamic content</p>
+                <p className="text-xs text-muted-foreground">
+                  Use {"{{"} variable {"}}"} placeholders for dynamic content
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="sms-template">SMS Template</Label>

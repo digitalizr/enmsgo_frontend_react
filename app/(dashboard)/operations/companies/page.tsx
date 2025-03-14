@@ -53,7 +53,7 @@ const companies = [
     contactName: "John Smith",
     contactEmail: "john.smith@acmecorp.com",
     contactPhone: "+1 (555) 123-4567",
-    status: "active",
+    status: "contracted",
     facilities: [
       {
         id: "F001",
@@ -85,7 +85,7 @@ const companies = [
     contactName: "Jane Doe",
     contactEmail: "jane.doe@techcorp.com",
     contactPhone: "+1 (555) 987-6543",
-    status: "active",
+    status: "contracted",
     facilities: [
       {
         id: "F003",
@@ -106,7 +106,7 @@ const companies = [
     contactName: "Robert Johnson",
     contactEmail: "robert@globaltech.com",
     contactPhone: "+1 (555) 456-7890",
-    status: "active",
+    status: "proposal",
     facilities: [
       {
         id: "F004",
@@ -145,7 +145,7 @@ const companies = [
     contactName: "Sarah Williams",
     contactEmail: "sarah@futuretech.com",
     contactPhone: "+1 (555) 789-0123",
-    status: "inactive",
+    status: "lead",
     facilities: [
       {
         id: "F007",
@@ -179,7 +179,7 @@ export default function CompaniesPage() {
     contactName: "",
     contactEmail: "",
     contactPhone: "",
-    status: "active",
+    status: "lead",
   })
 
   // New facility form state
@@ -242,10 +242,7 @@ export default function CompaniesPage() {
       company.contactName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       company.contactEmail.toLowerCase().includes(searchTerm.toLowerCase())
 
-    const matchesTab =
-      activeTab === "all" ||
-      (activeTab === "active" && company.status === "active") ||
-      (activeTab === "inactive" && company.status === "inactive")
+    const matchesTab = activeTab === "all" || company.status === activeTab
 
     return matchesSearch && matchesTab
   })
@@ -335,8 +332,11 @@ export default function CompaniesPage() {
                     value={newCompany.status}
                     onChange={(e) => handleCompanyInputChange("status", e.target.value)}
                   >
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
+                    <option value="lead">Lead</option>
+                    <option value="contacted">Contacted</option>
+                    <option value="proposal">Proposal</option>
+                    <option value="contracted">Contracted</option>
+                    <option value="rejected">Rejected</option>
                   </select>
                 </div>
               </div>
@@ -407,8 +407,10 @@ export default function CompaniesPage() {
         <div className="flex items-center justify-between">
           <TabsList>
             <TabsTrigger value="all">All Companies</TabsTrigger>
-            <TabsTrigger value="active">Active</TabsTrigger>
-            <TabsTrigger value="inactive">Inactive</TabsTrigger>
+            <TabsTrigger value="contracted">Contracted</TabsTrigger>
+            <TabsTrigger value="proposal">Proposal</TabsTrigger>
+            <TabsTrigger value="contacted">Contacted</TabsTrigger>
+            <TabsTrigger value="lead">Lead</TabsTrigger>
           </TabsList>
 
           <div className="relative w-64">
@@ -457,10 +459,20 @@ export default function CompaniesPage() {
                             {company.facilities.reduce((total, facility) => total + facility.departments.length, 0)}
                           </TableCell>
                           <TableCell>
-                            {company.status === "active" ? (
-                              <Badge className="bg-green-500">Active</Badge>
+                            {company.status === "contracted" ? (
+                              <Badge className="bg-green-500">Contracted</Badge>
+                            ) : company.status === "proposal" ? (
+                              <Badge className="bg-blue-500">Proposal</Badge>
+                            ) : company.status === "contacted" ? (
+                              <Badge className="bg-yellow-500">Contacted</Badge>
+                            ) : company.status === "lead" ? (
+                              <Badge variant="outline" className="bg-purple-500/10 text-purple-700">
+                                Lead
+                              </Badge>
                             ) : (
-                              <Badge variant="secondary">Inactive</Badge>
+                              <Badge variant="outline" className="bg-red-500/10 text-red-700">
+                                Rejected
+                              </Badge>
                             )}
                           </TableCell>
                           <TableCell>
@@ -493,10 +505,16 @@ export default function CompaniesPage() {
             </CardContent>
           </Card>
         </TabsContent>
-        <TabsContent value="active" className="mt-0">
+        <TabsContent value="contracted" className="mt-0">
           {/* Content for active tab - the base content will show filtered results */}
         </TabsContent>
-        <TabsContent value="inactive" className="mt-0">
+        <TabsContent value="proposal" className="mt-0">
+          {/* Content for inactive tab - the base content will show filtered results */}
+        </TabsContent>
+        <TabsContent value="contacted" className="mt-0">
+          {/* Content for inactive tab - the base content will show filtered results */}
+        </TabsContent>
+        <TabsContent value="lead" className="mt-0">
           {/* Content for inactive tab - the base content will show filtered results */}
         </TabsContent>
       </Tabs>

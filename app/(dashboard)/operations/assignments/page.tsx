@@ -31,6 +31,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Checkbox } from "@/components/ui/checkbox"
 
 // Sample data
 const users = [
@@ -396,6 +397,53 @@ export default function AssignmentsPage() {
                     </Button>
                     <Button onClick={handleAssignEdgeGateway} disabled={!selectedEdgeGateway}>
                       Assign
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+              <Dialog open={isAssignSmartMeterOpen} onOpenChange={setIsAssignSmartMeterOpen}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Assign Smart Meters</DialogTitle>
+                    <DialogDescription>Select smart meters to assign to the selected edge gateway.</DialogDescription>
+                  </DialogHeader>
+                  <div className="py-4">
+                    <Label className="mb-2 block">Available Smart Meters</Label>
+                    <ScrollArea className="h-[300px] rounded-md border">
+                      <div className="p-4 space-y-2">
+                        {availableSmartMeters.length === 0 ? (
+                          <p className="text-center text-muted-foreground py-4">No available smart meters</p>
+                        ) : (
+                          availableSmartMeters.map((meter) => (
+                            <div key={meter.id} className="flex items-center justify-between rounded-md border p-3">
+                              <div className="flex items-center gap-2">
+                                <Checkbox
+                                  id={`meter-${meter.id}`}
+                                  checked={selectedSmartMeters.includes(meter.id)}
+                                  onCheckedChange={() => handleSmartMeterChange(meter.id)}
+                                />
+                                <div className="flex flex-col">
+                                  <div className="flex items-center">
+                                    <CircuitBoard className="mr-2 h-4 w-4 text-green-500" />
+                                    <Label htmlFor={`meter-${meter.id}`} className="font-medium">
+                                      {meter.name}
+                                    </Label>
+                                  </div>
+                                  <span className="text-sm text-muted-foreground">Serial: {meter.serial}</span>
+                                </div>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsAssignSmartMeterOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={handleAssignSmartMeters} disabled={selectedSmartMeters.length === 0}>
+                      Assign Selected ({selectedSmartMeters.length})
                     </Button>
                   </DialogFooter>
                 </DialogContent>
