@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   Building,
   Plus,
@@ -16,6 +16,7 @@ import {
   Phone,
   Mail,
   User,
+  Loader2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -43,142 +44,30 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Textarea } from "@/components/ui/textarea"
-
-// Sample data for companies
-const companies = [
-  {
-    id: "C001",
-    name: "Acme Corporation",
-    address: "123 Main St, New York, NY 10001",
-    contactName: "John Smith",
-    contactEmail: "john.smith@acmecorp.com",
-    contactPhone: "+1 (555) 123-4567",
-    status: "contracted",
-    facilities: [
-      {
-        id: "F001",
-        name: "Headquarters",
-        location: "New York, NY",
-        departments: [
-          { id: "D001", name: "Executive" },
-          { id: "D002", name: "HR" },
-          { id: "D003", name: "IT" },
-          { id: "D004", name: "Finance" },
-        ],
-      },
-      {
-        id: "F002",
-        name: "Manufacturing Plant",
-        location: "Chicago, IL",
-        departments: [
-          { id: "D005", name: "Production" },
-          { id: "D006", name: "Quality Control" },
-          { id: "D007", name: "Warehouse" },
-        ],
-      },
-    ],
-  },
-  {
-    id: "C002",
-    name: "TechCorp",
-    address: "456 Tech Blvd, San Francisco, CA 94107",
-    contactName: "Jane Doe",
-    contactEmail: "jane.doe@techcorp.com",
-    contactPhone: "+1 (555) 987-6543",
-    status: "contracted",
-    facilities: [
-      {
-        id: "F003",
-        name: "Main Office",
-        location: "San Francisco, CA",
-        departments: [
-          { id: "D008", name: "Engineering" },
-          { id: "D009", name: "Product" },
-          { id: "D010", name: "Marketing" },
-        ],
-      },
-    ],
-  },
-  {
-    id: "C003",
-    name: "GlobalTech Industries",
-    address: "789 Global Way, Austin, TX 78701",
-    contactName: "Robert Johnson",
-    contactEmail: "robert@globaltech.com",
-    contactPhone: "+1 (555) 456-7890",
-    status: "proposal",
-    facilities: [
-      {
-        id: "F004",
-        name: "Headquarters",
-        location: "Austin, TX",
-        departments: [
-          { id: "D011", name: "Management" },
-          { id: "D012", name: "Finance" },
-        ],
-      },
-      {
-        id: "F005",
-        name: "Research Center",
-        location: "Boston, MA",
-        departments: [
-          { id: "D013", name: "R&D" },
-          { id: "D014", name: "Testing" },
-        ],
-      },
-      {
-        id: "F006",
-        name: "Manufacturing",
-        location: "Detroit, MI",
-        departments: [
-          { id: "D015", name: "Assembly" },
-          { id: "D016", name: "Quality Assurance" },
-          { id: "D017", name: "Logistics" },
-        ],
-      },
-    ],
-  },
-  {
-    id: "C004",
-    name: "Future Energy",
-    address: "321 Energy Blvd, Houston, TX 77002",
-    contactName: "Sarah Williams",
-    contactEmail: "sarah@futuretech.com",
-    contactPhone: "+1 (555) 789-0123",
-    status: "lead",
-    facilities: [
-      {
-        id: "F007",
-        name: "Main Office",
-        location: "Houston, TX",
-        departments: [
-          { id: "D018", name: "Administration" },
-          { id: "D019", name: "Sales" },
-          { id: "D020", name: "Support" },
-        ],
-      },
-    ],
-  },
-]
+import { useToast } from "@/hooks/use-toast"
+import { companyApi } from "@/services/api"
 
 export default function CompaniesPage() {
+  const { toast } = useToast()
+  const [companies, setCompanies] = useState([])
+  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [isAddCompanyOpen, setIsAddCompanyOpen] = useState(false)
   const [isAddFacilityOpen, setIsAddFacilityOpen] = useState(false)
   const [isAddDepartmentOpen, setIsAddDepartmentOpen] = useState(false)
-  const [selectedCompany, setSelectedCompany] = useState<any>(null)
-  const [selectedFacility, setSelectedFacility] = useState<any>(null)
-  const [expandedCompanies, setExpandedCompanies] = useState<string[]>([])
-  const [expandedFacilities, setExpandedFacilities] = useState<string[]>([])
+  const [selectedCompany, setSelectedCompany] = useState(null)
+  const [selectedFacility, setSelectedFacility] = useState(null)
+  const [expandedCompanies, setExpandedCompanies] = useState([])
+  const [expandedFacilities, setExpandedFacilities] = useState([])
   const [activeTab, setActiveTab] = useState("all")
 
   // New company form state
   const [newCompany, setNewCompany] = useState({
     name: "",
     address: "",
-    contactName: "",
-    contactEmail: "",
-    contactPhone: "",
+    contact_name: "",
+    contact_email: "",
+    contact_phone: "",
     status: "lead",
   })
 
@@ -193,8 +82,42 @@ export default function CompaniesPage() {
     name: "",
   })
 
+  // Fetch companies from the API
+  const fetchCompanies = async () => {
+    try {
+      setLoading(true)
+      // Prepare filter parameters
+      const params = {}
+      if (searchTerm) params.search = searchTerm
+      if (activeTab !== "all") params.status = activeTab
+
+      // Call the API
+      const response = await companyApi.getAll(params)
+      setCompanies(response.data)
+    } catch (error) {
+      console.error("Error fetching companies:", error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to fetch companies. Please try again.",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Initial data fetch
+  useEffect(() => {
+    fetchCompanies()
+  }, [])
+
+  // Fetch data when tab changes
+  useEffect(() => {
+    fetchCompanies()
+  }, [activeTab])
+
   // Toggle company expansion
-  const toggleCompanyExpansion = (companyId: string) => {
+  const toggleCompanyExpansion = (companyId) => {
     if (expandedCompanies.includes(companyId)) {
       setExpandedCompanies(expandedCompanies.filter((id) => id !== companyId))
     } else {
@@ -203,7 +126,7 @@ export default function CompaniesPage() {
   }
 
   // Toggle facility expansion
-  const toggleFacilityExpansion = (facilityId: string) => {
+  const toggleFacilityExpansion = (facilityId) => {
     if (expandedFacilities.includes(facilityId)) {
       setExpandedFacilities(expandedFacilities.filter((id) => id !== facilityId))
     } else {
@@ -212,7 +135,7 @@ export default function CompaniesPage() {
   }
 
   // Handle company input changes
-  const handleCompanyInputChange = (field: string, value: string) => {
+  const handleCompanyInputChange = (field, value) => {
     setNewCompany({
       ...newCompany,
       [field]: value,
@@ -220,7 +143,7 @@ export default function CompaniesPage() {
   }
 
   // Handle facility input changes
-  const handleFacilityInputChange = (field: string, value: string) => {
+  const handleFacilityInputChange = (field, value) => {
     setNewFacility({
       ...newFacility,
       [field]: value,
@@ -228,32 +151,177 @@ export default function CompaniesPage() {
   }
 
   // Handle department input changes
-  const handleDepartmentInputChange = (field: string, value: string) => {
+  const handleDepartmentInputChange = (field, value) => {
     setNewDepartment({
       ...newDepartment,
       [field]: value,
     })
   }
 
-  // Filter companies based on search and active tab
-  const filteredCompanies = companies.filter((company) => {
-    const matchesSearch =
-      company.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      company.contactName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      company.contactEmail.toLowerCase().includes(searchTerm.toLowerCase())
+  // Handle search
+  const handleSearch = (e) => {
+    e.preventDefault()
+    fetchCompanies()
+  }
 
-    const matchesTab = activeTab === "all" || company.status === activeTab
+  // Handle add company
+  const handleAddCompany = async () => {
+    try {
+      // Validate form
+      if (!newCompany.name || !newCompany.contact_name || !newCompany.contact_email) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Company name, contact name, and contact email are required.",
+        })
+        return
+      }
 
-    return matchesSearch && matchesTab
-  })
+      // Call the API to create a new company
+      await companyApi.create(newCompany)
+
+      // Close dialog and reset form
+      setIsAddCompanyOpen(false)
+      setNewCompany({
+        name: "",
+        address: "",
+        contact_name: "",
+        contact_email: "",
+        contact_phone: "",
+        status: "lead",
+      })
+
+      // Refresh the data
+      fetchCompanies()
+
+      toast({
+        title: "Success",
+        description: "Company added successfully.",
+      })
+    } catch (error) {
+      console.error("Error adding company:", error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to add company. Please try again.",
+      })
+    }
+  }
+
+  // Handle add facility
+  const handleAddFacility = async () => {
+    try {
+      // Validate form
+      if (!newFacility.name || !newFacility.location) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Facility name and location are required.",
+        })
+        return
+      }
+
+      // Call the API to create a new facility
+      await companyApi.createFacility(selectedCompany.id, newFacility)
+
+      // Close dialog and reset form
+      setIsAddFacilityOpen(false)
+      setNewFacility({
+        name: "",
+        location: "",
+      })
+
+      // Refresh the data
+      fetchCompanies()
+
+      toast({
+        title: "Success",
+        description: "Facility added successfully.",
+      })
+    } catch (error) {
+      console.error("Error adding facility:", error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to add facility. Please try again.",
+      })
+    }
+  }
+
+  // Handle add department
+  const handleAddDepartment = async () => {
+    try {
+      // Validate form
+      if (!newDepartment.name) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Department name is required.",
+        })
+        return
+      }
+
+      // Call the API to create a new department
+      await companyApi.createDepartment(selectedFacility.id, newDepartment)
+
+      // Close dialog and reset form
+      setIsAddDepartmentOpen(false)
+      setNewDepartment({
+        name: "",
+      })
+
+      // Refresh the data
+      fetchCompanies()
+
+      toast({
+        title: "Success",
+        description: "Department added successfully.",
+      })
+    } catch (error) {
+      console.error("Error adding department:", error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to add department. Please try again.",
+      })
+    }
+  }
 
   // Count total facilities and departments
-  const totalFacilities = companies.reduce((total, company) => total + company.facilities.length, 0)
+  const totalFacilities = companies.reduce((total, company) => total + company.facilities?.length || 0, 0)
   const totalDepartments = companies.reduce(
     (total, company) =>
-      total + company.facilities.reduce((facilityTotal, facility) => facilityTotal + facility.departments.length, 0),
+      total +
+      (company.facilities?.reduce((facilityTotal, facility) => facilityTotal + facility.departments?.length || 0, 0) ||
+        0),
     0,
   )
+
+  // Get status badge
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case "contracted":
+        return <Badge className="bg-green-500">Contracted</Badge>
+      case "proposal":
+        return <Badge className="bg-blue-500">Proposal</Badge>
+      case "contacted":
+        return <Badge className="bg-yellow-500">Contacted</Badge>
+      case "lead":
+        return (
+          <Badge variant="outline" className="bg-purple-500/10 text-purple-700">
+            Lead
+          </Badge>
+        )
+      case "rejected":
+        return (
+          <Badge variant="outline" className="bg-red-500/10 text-red-700">
+            Rejected
+          </Badge>
+        )
+      default:
+        return <Badge variant="outline">{status}</Badge>
+    }
+  }
 
   return (
     <div className="flex flex-col gap-4 p-4 md:p-8">
@@ -299,8 +367,8 @@ export default function CompaniesPage() {
                   <Input
                     id="contact-name"
                     placeholder="Enter contact name"
-                    value={newCompany.contactName}
-                    onChange={(e) => handleCompanyInputChange("contactName", e.target.value)}
+                    value={newCompany.contact_name}
+                    onChange={(e) => handleCompanyInputChange("contact_name", e.target.value)}
                   />
                 </div>
                 <div className="grid gap-2">
@@ -309,8 +377,8 @@ export default function CompaniesPage() {
                     id="contact-email"
                     type="email"
                     placeholder="Enter contact email"
-                    value={newCompany.contactEmail}
-                    onChange={(e) => handleCompanyInputChange("contactEmail", e.target.value)}
+                    value={newCompany.contact_email}
+                    onChange={(e) => handleCompanyInputChange("contact_email", e.target.value)}
                   />
                 </div>
               </div>
@@ -320,8 +388,8 @@ export default function CompaniesPage() {
                   <Input
                     id="contact-phone"
                     placeholder="Enter contact phone"
-                    value={newCompany.contactPhone}
-                    onChange={(e) => handleCompanyInputChange("contactPhone", e.target.value)}
+                    value={newCompany.contact_phone}
+                    onChange={(e) => handleCompanyInputChange("contact_phone", e.target.value)}
                   />
                 </div>
                 <div className="grid gap-2">
@@ -346,8 +414,8 @@ export default function CompaniesPage() {
                 Cancel
               </Button>
               <Button
-                onClick={() => setIsAddCompanyOpen(false)}
-                disabled={!newCompany.name || !newCompany.contactName || !newCompany.contactEmail}
+                onClick={handleAddCompany}
+                disabled={!newCompany.name || !newCompany.contact_name || !newCompany.contact_email}
               >
                 Add Company
               </Button>
@@ -365,7 +433,7 @@ export default function CompaniesPage() {
           <CardContent>
             <div className="text-2xl font-bold">{companies.length}</div>
             <p className="text-xs text-muted-foreground">
-              {companies.filter((c) => c.status === "active").length} active
+              {companies.filter((c) => c.status === "contracted").length} contracted
             </p>
           </CardContent>
         </Card>
@@ -421,6 +489,7 @@ export default function CompaniesPage() {
               className="pl-8"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSearch(e)}
             />
           </div>
         </div>
@@ -442,39 +511,34 @@ export default function CompaniesPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredCompanies.length === 0 ? (
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="h-24 text-center">
+                          <div className="flex justify-center">
+                            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : companies.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={7} className="h-24 text-center">
                           No companies found.
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filteredCompanies.map((company) => (
+                      companies.map((company) => (
                         <TableRow key={company.id}>
                           <TableCell className="font-medium">{company.name}</TableCell>
-                          <TableCell>{company.contactName}</TableCell>
-                          <TableCell>{company.contactEmail}</TableCell>
-                          <TableCell>{company.facilities.length}</TableCell>
+                          <TableCell>{company.contact_name}</TableCell>
+                          <TableCell>{company.contact_email}</TableCell>
+                          <TableCell>{company.facilities?.length || 0}</TableCell>
                           <TableCell>
-                            {company.facilities.reduce((total, facility) => total + facility.departments.length, 0)}
+                            {company.facilities?.reduce(
+                              (total, facility) => total + facility.departments?.length || 0,
+                              0,
+                            ) || 0}
                           </TableCell>
-                          <TableCell>
-                            {company.status === "contracted" ? (
-                              <Badge className="bg-green-500">Contracted</Badge>
-                            ) : company.status === "proposal" ? (
-                              <Badge className="bg-blue-500">Proposal</Badge>
-                            ) : company.status === "contacted" ? (
-                              <Badge className="bg-yellow-500">Contacted</Badge>
-                            ) : company.status === "lead" ? (
-                              <Badge variant="outline" className="bg-purple-500/10 text-purple-700">
-                                Lead
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="bg-red-500/10 text-red-700">
-                                Rejected
-                              </Badge>
-                            )}
-                          </TableCell>
+                          <TableCell>{getStatusBadge(company.status)}</TableCell>
                           <TableCell>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
@@ -506,16 +570,16 @@ export default function CompaniesPage() {
           </Card>
         </TabsContent>
         <TabsContent value="contracted" className="mt-0">
-          {/* Content for active tab - the base content will show filtered results */}
+          {/* Content for contracted tab - the base content will show filtered results */}
         </TabsContent>
         <TabsContent value="proposal" className="mt-0">
-          {/* Content for inactive tab - the base content will show filtered results */}
+          {/* Content for proposal tab - the base content will show filtered results */}
         </TabsContent>
         <TabsContent value="contacted" className="mt-0">
-          {/* Content for inactive tab - the base content will show filtered results */}
+          {/* Content for contacted tab - the base content will show filtered results */}
         </TabsContent>
         <TabsContent value="lead" className="mt-0">
-          {/* Content for inactive tab - the base content will show filtered results */}
+          {/* Content for lead tab - the base content will show filtered results */}
         </TabsContent>
       </Tabs>
 
@@ -566,10 +630,7 @@ export default function CompaniesPage() {
                     <Button variant="outline" onClick={() => setIsAddFacilityOpen(false)}>
                       Cancel
                     </Button>
-                    <Button
-                      onClick={() => setIsAddFacilityOpen(false)}
-                      disabled={!newFacility.name || !newFacility.location}
-                    >
+                    <Button onClick={handleAddFacility} disabled={!newFacility.name || !newFacility.location}>
                       Add Facility
                     </Button>
                   </DialogFooter>
@@ -605,7 +666,7 @@ export default function CompaniesPage() {
                     <Button variant="outline" onClick={() => setIsAddDepartmentOpen(false)}>
                       Cancel
                     </Button>
-                    <Button onClick={() => setIsAddDepartmentOpen(false)} disabled={!newDepartment.name}>
+                    <Button onClick={handleAddDepartment} disabled={!newDepartment.name}>
                       Add Department
                     </Button>
                   </DialogFooter>
@@ -616,7 +677,11 @@ export default function CompaniesPage() {
 
           <ScrollArea className="h-[500px]">
             <div className="space-y-4">
-              {filteredCompanies.length === 0 ? (
+              {loading ? (
+                <div className="flex h-40 items-center justify-center">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : companies.length === 0 ? (
                 <div className="flex h-40 items-center justify-center rounded-md border border-dashed">
                   <div className="flex flex-col items-center text-center">
                     <Building className="h-10 w-10 text-muted-foreground" />
@@ -625,7 +690,7 @@ export default function CompaniesPage() {
                   </div>
                 </div>
               ) : (
-                filteredCompanies.map((company) => (
+                companies.map((company) => (
                   <Collapsible
                     key={company.id}
                     open={expandedCompanies.includes(company.id)}
@@ -655,10 +720,13 @@ export default function CompaniesPage() {
                       </div>
                       <div className="flex items-center space-x-2">
                         <Badge variant="outline" className="ml-2">
-                          {company.facilities.length} Facilities
+                          {company.facilities?.length || 0} Facilities
                         </Badge>
                         <Badge variant="outline" className="ml-2">
-                          {company.facilities.reduce((total, facility) => total + facility.departments.length, 0)}{" "}
+                          {company.facilities?.reduce(
+                            (total, facility) => total + facility.departments?.length || 0,
+                            0,
+                          ) || 0}{" "}
                           Departments
                         </Badge>
                         <Button
@@ -690,20 +758,20 @@ export default function CompaniesPage() {
                                 <User className="mr-1 h-3 w-3 text-muted-foreground" />
                                 <span className="text-muted-foreground">Contact:</span>
                               </div>
-                              <p>{company.contactName}</p>
+                              <p>{company.contact_name}</p>
                               <div className="flex items-center mt-1">
                                 <Mail className="mr-1 h-3 w-3 text-muted-foreground" />
-                                <span>{company.contactEmail}</span>
+                                <span>{company.contact_email}</span>
                               </div>
                               <div className="flex items-center mt-1">
                                 <Phone className="mr-1 h-3 w-3 text-muted-foreground" />
-                                <span>{company.contactPhone}</span>
+                                <span>{company.contact_phone}</span>
                               </div>
                             </div>
                           </div>
                         </div>
 
-                        {company.facilities.length === 0 ? (
+                        {!company.facilities || company.facilities.length === 0 ? (
                           <div className="rounded-md border border-dashed p-4 text-center">
                             <p className="text-sm text-muted-foreground">No facilities added</p>
                             <Button
@@ -745,7 +813,7 @@ export default function CompaniesPage() {
                                   </CollapsibleTrigger>
                                 </div>
                                 <div className="flex items-center space-x-2">
-                                  <Badge variant="outline">{facility.departments.length} Departments</Badge>
+                                  <Badge variant="outline">{facility.departments?.length || 0} Departments</Badge>
                                   <Button
                                     variant="ghost"
                                     size="icon"
@@ -762,7 +830,7 @@ export default function CompaniesPage() {
 
                               <CollapsibleContent>
                                 <div className="space-y-2 p-3 pt-0">
-                                  {facility.departments.length === 0 ? (
+                                  {!facility.departments || facility.departments.length === 0 ? (
                                     <div className="rounded-md border border-dashed p-3 text-center">
                                       <p className="text-sm text-muted-foreground">No departments added</p>
                                       <Button

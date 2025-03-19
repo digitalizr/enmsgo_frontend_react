@@ -57,7 +57,18 @@
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^0.9.6",
-    "zod": "^3.24.1"
+    "zod": "^3.24.1",
+    "express": "latest",
+    "pg-query-stream": "latest",
+    "dotenv": "latest",
+    "cors": "latest",
+    "helmet": "latest",
+    "morgan": "latest",
+    "express-rate-limit": "latest",
+    "jsonwebtoken": "latest",
+    "bcryptjs": "latest",
+    "uuid": "latest",
+    "pg-promise": "latest"
   },
   "devDependencies": {
     "@types/node": "^22",

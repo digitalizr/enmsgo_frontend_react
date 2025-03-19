@@ -11,25 +11,32 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuth } from "@/contexts/auth-context"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { authApi } from "@/lib/api" // Import the authApi service
+
+// Define admin emails for temporary solution
+const ADMIN_EMAILS = ["admin@admin.com"]
+const OPERATOR_EMAILS = ["operator@operator.com"]
+const TECHNICIAN_EMAILS = ["technician@technician.com"]
 
 export default function SignInPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const { login, user } = useAuth()
+  const { login, user, isOperationStaff } = useAuth()
   const router = useRouter()
 
   // Redirect if already logged in
   useEffect(() => {
     if (user) {
-      if (user.role === "admin") {
-        router.push("/operations/dashboard")
+      // Redirect based on user role
+      if (isOperationStaff) {
+        router.replace("/operations/dashboard")
       } else {
-        router.push("/customer/dashboard")
+        router.replace("/customer/dashboard")
       }
     }
-  }, [user, router])
+  }, [user, router, isOperationStaff])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -37,34 +44,63 @@ export default function SignInPage() {
     setIsLoading(true)
 
     try {
-      // Simulate login with hardcoded credentials
-      if (email === "admin@admin.com" && password === "admin") {
-        await login({
-          id: "1",
-          name: "Admin User",
-          email: "admin@admin.com",
-          role: "admin",
-        })
-        router.push("/operations/dashboard")
-      } else if (email === "user@user.com" && password === "user") {
-        await login({
-          id: "2",
-          name: "Customer User",
-          email: "user@user.com",
-          role: "customer",
-        })
-        router.push("/customer/dashboard")
+      // Connect to the backend API for authentication
+      const response = await authApi.login(email, password)
+
+      // Check if the user needs to change their password (first-time login)
+      if (response.user.requirePasswordChange) {
+        // Store temporary auth token for password change
+        localStorage.setItem("temp_token", response.token)
+
+        // Redirect to set-password page with user ID
+        router.push(`/set-password?userId=${response.user.id}`)
+        return
+      }
+
+      // If authentication is successful and no password change required
+      if (response && response.user) {
+        // Store the token in localStorage for future API requests
+        localStorage.setItem("token", response.token)
+
+        // Log the response for debugging
+        console.log("Login response:", response)
+
+        // Determine if the user is operations staff based on email (temporary solution)
+        const isOpStaff =
+          ADMIN_EMAILS.includes(email) || OPERATOR_EMAILS.includes(email) || TECHNICIAN_EMAILS.includes(email)
+
+        console.log("Is operations staff (based on email):", isOpStaff)
+
+        // Login the user using the auth context
+        await login(response.user)
+
+        // Redirect based on operations staff status
+        if (isOpStaff) {
+          console.log("Redirecting to operations dashboard")
+          router.replace("/operations/dashboard")
+        } else {
+          console.log("Redirecting to customer dashboard")
+          router.replace("/customer/dashboard")
+        }
       } else {
-        setError("Invalid email or password")
+        setError("Invalid response from server")
       }
     } catch (err) {
       console.error("Sign in error:", err)
-      setError("An error occurred during sign in. Please try again.")
+
+      // Display a user-friendly error message
+      if (typeof err === "string") {
+        setError(err)
+      } else {
+        setError("Invalid email or password. Please try again.")
+      }
     } finally {
       setIsLoading(false)
     }
   }
 
+  // For demo purposes, we'll keep the demo account section
+  // but add a note that it connects to the real backend now
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-4 md:p-8">
       <Link href="/" className="absolute left-4 top-4 md:left-8 md:top-8 flex items-center gap-2">
@@ -102,6 +138,9 @@ export default function SignInPage() {
                   <code className="bg-white px-2 py-1 rounded border border-blue-100 text-blue-800 mt-1">user</code>
                 </div>
               </div>
+              <p className="mt-2 text-xs text-blue-700">
+                Note: First-time users will be prompted to change their password.
+              </p>
             </div>
           </div>
 

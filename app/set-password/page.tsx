@@ -1,16 +1,15 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { KeyRound, EyeIcon, EyeOffIcon, CheckCircle, AlertCircle } from "lucide-react"
+import { KeyRound, EyeIcon, EyeOffIcon, CheckCircle, AlertCircle, ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import { userAPI } from "@/services/api"
+import { authApi } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 
 export default function SetPasswordPage() {
@@ -18,8 +17,14 @@ export default function SetPasswordPage() {
   const searchParams = useSearchParams()
   const { toast } = useToast()
 
-  const [token, setToken] = useState("")
-  const [password, setPassword] = useState("")
+  // Get userId from URL query parameters (for first-time login)
+  const userId = searchParams.get("userId")
+
+  // Get token from URL query parameters (for password reset via email)
+  const token = searchParams.get("token")
+
+  const [currentPassword, setCurrentPassword] = useState("")
+  const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -27,19 +32,33 @@ export default function SetPasswordPage() {
   const [tokenChecked, setTokenChecked] = useState(false)
   const [passwordStrength, setPasswordStrength] = useState(0)
   const [passwordFeedback, setPasswordFeedback] = useState<string[]>([])
+  const [isFirstTimeLogin, setIsFirstTimeLogin] = useState(false)
 
+  // Check if this is a first-time login or a password reset via email
   useEffect(() => {
-    const tokenParam = searchParams.get("token")
-    if (tokenParam) {
-      setToken(tokenParam)
-      validateToken(tokenParam)
+    if (userId) {
+      // This is a first-time login password change
+      setIsFirstTimeLogin(true)
+      setTokenChecked(true)
+      setTokenValid(true)
+    } else if (token) {
+      // This is a password reset via email
+      validateToken(token)
+    } else {
+      // No userId or token provided, redirect to sign in
+      toast({
+        variant: "destructive",
+        title: "Invalid request",
+        description: "Missing required parameters for password change.",
+      })
+      router.push("/signin")
     }
-  }, [searchParams])
+  }, [userId, token, router, toast])
 
   const validateToken = async (tokenValue: string) => {
     try {
       setLoading(true)
-      const response = await userAPI.validatePasswordToken(tokenValue)
+      const response = await authApi.validatePasswordToken(tokenValue)
       setTokenValid(response.valid)
       setTokenChecked(true)
     } catch (error) {
@@ -97,14 +116,14 @@ export default function SetPasswordPage() {
 
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
-    setPassword(value)
+    setNewPassword(value)
     checkPasswordStrength(value)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (password !== confirmPassword) {
+    if (newPassword !== confirmPassword) {
       toast({
         variant: "destructive",
         title: "Passwords don't match",
@@ -124,12 +143,41 @@ export default function SetPasswordPage() {
 
     try {
       setLoading(true)
-      await userAPI.setPassword(token, password)
 
-      toast({
-        title: "Password set successfully",
-        description: "You can now sign in with your new password.",
-      })
+      if (isFirstTimeLogin) {
+        // First-time login password change
+        // Get the temporary token from localStorage
+        const tempToken = localStorage.getItem("temp_token")
+
+        if (!tempToken) {
+          toast({
+            variant: "destructive",
+            title: "Session expired",
+            description: "Your session has expired. Please sign in again.",
+          })
+          router.push("/signin")
+          return
+        }
+
+        // Call API to change password for first-time login
+        await authApi.changePasswordFirstTime(userId!, currentPassword, newPassword, tempToken)
+
+        // Clear temporary token
+        localStorage.removeItem("temp_token")
+
+        toast({
+          title: "Password changed successfully",
+          description: "You can now sign in with your new password.",
+        })
+      } else {
+        // Password reset via email token
+        await authApi.resetPassword(token!, newPassword)
+
+        toast({
+          title: "Password reset successfully",
+          description: "You can now sign in with your new password.",
+        })
+      }
 
       // Redirect to sign in page
       setTimeout(() => {
@@ -137,10 +185,21 @@ export default function SetPasswordPage() {
       }, 2000)
     } catch (error) {
       console.error("Error setting password:", error)
+
+      let errorMessage = "Failed to set password. Please try again."
+
+      if (typeof error === "string") {
+        if (error.includes("current password")) {
+          errorMessage = "Current password is incorrect. Please try again."
+        } else {
+          errorMessage = error
+        }
+      }
+
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to set password. Please try again or request a new reset link.",
+        description: errorMessage,
       })
     } finally {
       setLoading(false)
@@ -165,7 +224,7 @@ export default function SetPasswordPage() {
     )
   }
 
-  if (tokenChecked && !tokenValid) {
+  if (tokenChecked && !tokenValid && !isFirstTimeLogin) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
         <Card className="w-[400px]">
@@ -195,18 +254,37 @@ export default function SetPasswordPage() {
     <div className="flex min-h-screen items-center justify-center bg-gray-50">
       <Card className="w-[400px]">
         <CardHeader>
-          <CardTitle className="text-center">Set Your Password</CardTitle>
-          <CardDescription className="text-center">Create a new password for your account</CardDescription>
+          <CardTitle className="text-center">
+            {isFirstTimeLogin ? "Change Your Password" : "Reset Your Password"}
+          </CardTitle>
+          <CardDescription className="text-center">
+            {isFirstTimeLogin
+              ? "You need to change your password before continuing"
+              : "Create a new password for your account"}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            {isFirstTimeLogin && (
+              <div className="space-y-2">
+                <Label htmlFor="current-password">Current Password</Label>
+                <Input
+                  id="current-password"
+                  type={showPassword ? "text" : "password"}
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  required
+                />
+              </div>
+            )}
+
             <div className="space-y-2">
-              <Label htmlFor="password">New Password</Label>
+              <Label htmlFor="new-password">New Password</Label>
               <div className="relative">
                 <Input
-                  id="password"
+                  id="new-password"
                   type={showPassword ? "text" : "password"}
-                  value={password}
+                  value={newPassword}
                   onChange={handlePasswordChange}
                   className="pr-10"
                   required
@@ -249,7 +327,7 @@ export default function SetPasswordPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="confirm-password">Confirm Password</Label>
+              <Label htmlFor="confirm-password">Confirm New Password</Label>
               <Input
                 id="confirm-password"
                 type={showPassword ? "text" : "password"}
@@ -258,14 +336,14 @@ export default function SetPasswordPage() {
                 required
               />
 
-              {password && confirmPassword && password !== confirmPassword && (
+              {newPassword && confirmPassword && newPassword !== confirmPassword && (
                 <p className="text-xs text-red-500 mt-1 flex items-center">
                   <AlertCircle className="h-3 w-3 mr-1" />
                   Passwords don't match
                 </p>
               )}
 
-              {password && confirmPassword && password === confirmPassword && (
+              {newPassword && confirmPassword && newPassword === confirmPassword && (
                 <p className="text-xs text-green-500 mt-1 flex items-center">
                   <CheckCircle className="h-3 w-3 mr-1" />
                   Passwords match
@@ -273,23 +351,35 @@ export default function SetPasswordPage() {
               )}
             </div>
 
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={loading || password !== confirmPassword || passwordStrength < 60}
-            >
-              {loading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Setting Password...
-                </>
-              ) : (
-                <>
-                  <KeyRound className="mr-2 h-4 w-4" />
-                  Set Password
-                </>
-              )}
-            </Button>
+            <div className="flex flex-col gap-2 pt-2">
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={
+                  loading ||
+                  newPassword !== confirmPassword ||
+                  passwordStrength < 60 ||
+                  (isFirstTimeLogin && !currentPassword)
+                }
+              >
+                {loading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    {isFirstTimeLogin ? "Changing Password..." : "Resetting Password..."}
+                  </>
+                ) : (
+                  <>
+                    <KeyRound className="mr-2 h-4 w-4" />
+                    {isFirstTimeLogin ? "Change Password" : "Reset Password"}
+                  </>
+                )}
+              </Button>
+
+              <Button type="button" variant="outline" onClick={() => router.push("/signin")} className="w-full">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Sign In
+              </Button>
+            </div>
           </form>
         </CardContent>
       </Card>
