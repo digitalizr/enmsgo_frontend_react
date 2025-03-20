@@ -42,7 +42,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
-import { userAPI, companyAPI } from "@/lib/api"
+import { usersAPI, companiesAPI } from "@/services/api"
 
 export default function UsersPage() {
   const { toast } = useToast()
@@ -83,7 +83,7 @@ export default function UsersPage() {
   const fetchUsers = async () => {
     try {
       setLoading(true)
-      const response = await userAPI.getAll()
+      const response = await usersAPI.getAll()
       setUsers(response.data)
     } catch (error) {
       console.error("Error fetching users:", error)
@@ -100,7 +100,7 @@ export default function UsersPage() {
   // Fetch companies
   const fetchCompanies = async () => {
     try {
-      const response = await companyAPI.getAll()
+      const response = await companiesAPI.getAll()
       setCompanies(response.data)
     } catch (error) {
       console.error("Error fetching companies:", error)
@@ -145,7 +145,7 @@ export default function UsersPage() {
     if (selectedCompanyId) {
       const fetchFacilities = async () => {
         try {
-          const response = await companyAPI.getFacilities(selectedCompanyId)
+          const response = await companiesAPI.getFacilities(selectedCompanyId)
           setAvailableFacilities(response.data)
           setSelectedFacilityId("")
           setAvailableDepartments([])
@@ -174,7 +174,7 @@ export default function UsersPage() {
     if (selectedFacilityId && selectedCompanyId) {
       const fetchDepartments = async () => {
         try {
-          const response = await companyAPI.getDepartments(selectedFacilityId)
+          const response = await companiesAPI.getDepartments(selectedFacilityId)
           setAvailableDepartments(response.data)
 
           // Update new user form
@@ -231,7 +231,7 @@ export default function UsersPage() {
       }
 
       // Add the user with the generated password
-      await userAPI.create({
+      await usersAPI.create({
         ...newUser,
         password: generatedPassword,
         require_password_change: true,
@@ -257,7 +257,7 @@ export default function UsersPage() {
   // Handle password reset
   const handlePasswordReset = async () => {
     try {
-      await userAPI.resetPassword(selectedUser.id)
+      await usersAPI.resetPassword(selectedUser.id)
       toast({
         title: "Success",
         description: "Password reset email has been sent to the user.",
@@ -276,7 +276,7 @@ export default function UsersPage() {
   // Handle manual password reset
   const handleManualPasswordReset = async () => {
     try {
-      await userAPI.manualResetPassword(selectedUser.id, manualPassword)
+      await usersAPI.manualResetPassword(selectedUser.id, manualPassword)
       toast({
         title: "Success",
         description: "Password has been reset successfully.",
@@ -296,7 +296,7 @@ export default function UsersPage() {
   // Handle delete user
   const handleDeleteUser = async () => {
     try {
-      await userAPI.delete(selectedUser.id)
+      await usersAPI.delete(selectedUser.id)
       toast({
         title: "Success",
         description: "User deleted successfully.",
@@ -338,12 +338,12 @@ export default function UsersPage() {
     if (user.company?.id) {
       const fetchFacilities = async () => {
         try {
-          const response = await companyAPI.getFacilities(user.company.id)
+          const response = await companiesAPI.getFacilities(user.company.id)
           setAvailableFacilities(response.data)
 
           // Find available departments for this facility
           if (user.facility?.id) {
-            const deptResponse = await companyAPI.getDepartments(user.facility.id)
+            const deptResponse = await companiesAPI.getDepartments(user.facility.id)
             setAvailableDepartments(deptResponse.data)
           }
         } catch (error) {

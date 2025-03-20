@@ -34,7 +34,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useToast } from "@/hooks/use-toast"
-import { assignmentApi, userApi, edgeGatewayApi, smartMeterApi } from "@/lib/api"
+import { assignmentsAPI, usersAPI, edgeGatewaysAPI, smartMetersAPI } from "@/services/api"
 
 export default function AssignmentsPage() {
   const { toast } = useToast()
@@ -55,7 +55,7 @@ export default function AssignmentsPage() {
   // Fetch users from the API
   const fetchUsers = async () => {
     try {
-      const response = await userApi.getAll()
+      const response = await usersAPI.getAll()
       setUsers(response.data)
     } catch (error) {
       console.error("Error fetching users:", error)
@@ -70,7 +70,7 @@ export default function AssignmentsPage() {
   // Fetch available edge gateways from the API
   const fetchAvailableEdgeGateways = async () => {
     try {
-      const response = await edgeGatewayApi.getAll({ status: "available" })
+      const response = await edgeGatewaysAPI.getAll({ status: "available" })
       setAvailableEdgeGateways(response.data)
     } catch (error) {
       console.error("Error fetching available edge gateways:", error)
@@ -85,7 +85,7 @@ export default function AssignmentsPage() {
   // Fetch available smart meters from the API
   const fetchAvailableSmartMeters = async () => {
     try {
-      const response = await smartMeterApi.getAll({ status: "available" })
+      const response = await smartMetersAPI.getAll({ status: "available" })
       setAvailableSmartMeters(response.data)
     } catch (error) {
       console.error("Error fetching available smart meters:", error)
@@ -101,7 +101,7 @@ export default function AssignmentsPage() {
   const fetchAssignments = async () => {
     try {
       setLoading(true)
-      const response = await assignmentApi.getAll()
+      const response = await assignmentsAPI.getAll()
       setAssignments(response.data)
     } catch (error) {
       console.error("Error fetching assignments:", error)
@@ -156,7 +156,7 @@ export default function AssignmentsPage() {
       }
 
       // Call the API to assign the edge gateway
-      await assignmentApi.assignEdgeGateway(selectedUser, selectedEdgeGateway)
+      await assignmentsAPI.assignEdgeGateway(selectedUser, selectedEdgeGateway)
 
       // Refresh the data
       fetchAssignments()
@@ -193,7 +193,7 @@ export default function AssignmentsPage() {
       }
 
       // Call the API to assign the smart meters
-      await assignmentApi.assignSmartMeters(selectedEdgeGateway, selectedSmartMeters)
+      await assignmentsAPI.assignSmartMeters(selectedEdgeGateway, selectedSmartMeters)
 
       // Refresh the data
       fetchAssignments()
@@ -230,7 +230,7 @@ export default function AssignmentsPage() {
   const handleRemoveEdgeGateway = async (userId, gatewayId) => {
     try {
       // Call the API to remove the edge gateway assignment
-      await assignmentApi.removeEdgeGateway(userId, gatewayId)
+      await assignmentsAPI.removeEdgeGateway(userId, gatewayId)
 
       // Refresh the data
       fetchAssignments()
@@ -254,7 +254,7 @@ export default function AssignmentsPage() {
   const handleRemoveSmartMeter = async (gatewayId, meterId) => {
     try {
       // Call the API to remove the smart meter assignment
-      await assignmentApi.removeSmartMeter(gatewayId, meterId)
+      await assignmentsAPI.removeSmartMeter(gatewayId, meterId)
 
       // Refresh the data
       fetchAssignments()

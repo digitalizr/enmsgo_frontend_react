@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/pagination"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AlertCircle, Plus, Search, Trash2, Edit, RotateCw, Network, Cpu, Terminal } from "lucide-react"
-import { edgeGatewaysAPI, deviceModelsAPI } from "@/lib/api"
+import { edgeGatewaysAPI, deviceModelsAPI } from "@/services/api"
 import { useToast } from "@/hooks/use-toast"
 
 export default function EdgeGatewaysPage() {
@@ -97,11 +97,11 @@ export default function EdgeGatewaysPage() {
         search: filters.search,
       })
 
-      setEdgeGateways(response.data.data)
-      setPagination(response.data.pagination)
+      setEdgeGateways(response.data)
+      setPagination(response.pagination)
       setError(null)
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to fetch edge gateways")
+      setError(err.message || "Failed to fetch edge gateways")
       toast({
         variant: "destructive",
         title: "Error",
@@ -120,7 +120,7 @@ export default function EdgeGatewaysPage() {
         device_type: "edge_gateway",
       })
 
-      const models = response.data.data
+      const models = response.data
       setDeviceModels(models)
 
       // Extract unique manufacturers
@@ -150,7 +150,7 @@ export default function EdgeGatewaysPage() {
   const fetchIpAddresses = async (gatewayId) => {
     try {
       const response = await edgeGatewaysAPI.getIpAddresses(gatewayId)
-      setIpAddresses(response.data.data)
+      setIpAddresses(response.data)
     } catch (err) {
       console.error("Error fetching IP addresses:", err)
       toast({
@@ -166,7 +166,7 @@ export default function EdgeGatewaysPage() {
     try {
       const response = await edgeGatewaysAPI.getSpecifications(gatewayId)
       setSpecsData(
-        response.data.data || {
+        response.data || {
           os: "",
           os_version: "",
           cpu: "",
@@ -191,7 +191,7 @@ export default function EdgeGatewaysPage() {
     try {
       const response = await edgeGatewaysAPI.getConnectionDetails(gatewayId)
       setConnectionData(
-        response.data.data || {
+        response.data || {
           ssh_username: "",
           ssh_password: "",
           ssh_key: "",
@@ -311,7 +311,7 @@ export default function EdgeGatewaysPage() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: err.response?.data?.message || "Failed to add edge gateway",
+        description: err.message || "Failed to add edge gateway",
       })
       console.error("Error adding edge gateway:", err)
     }
@@ -332,7 +332,7 @@ export default function EdgeGatewaysPage() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: err.response?.data?.message || "Failed to update edge gateway",
+        description: err.message || "Failed to update edge gateway",
       })
       console.error("Error updating edge gateway:", err)
     }
@@ -351,7 +351,7 @@ export default function EdgeGatewaysPage() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: err.response?.data?.message || "Failed to update specifications",
+        description: err.message || "Failed to update specifications",
       })
       console.error("Error updating specifications:", err)
     }
@@ -370,7 +370,7 @@ export default function EdgeGatewaysPage() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: err.response?.data?.message || "Failed to update connection details",
+        description: err.message || "Failed to update connection details",
       })
       console.error("Error updating connection details:", err)
     }
@@ -391,7 +391,7 @@ export default function EdgeGatewaysPage() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: err.response?.data?.message || "Failed to delete edge gateway",
+        description: err.message || "Failed to delete edge gateway",
       })
       console.error("Error deleting edge gateway:", err)
     }
@@ -414,7 +414,7 @@ export default function EdgeGatewaysPage() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: err.response?.data?.message || "Failed to add IP address",
+        description: err.message || "Failed to add IP address",
       })
       console.error("Error adding IP address:", err)
     }
@@ -433,7 +433,7 @@ export default function EdgeGatewaysPage() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: err.response?.data?.message || "Failed to remove IP address",
+        description: err.message || "Failed to remove IP address",
       })
       console.error("Error removing IP address:", err)
     }

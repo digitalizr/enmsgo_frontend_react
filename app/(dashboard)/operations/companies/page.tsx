@@ -47,7 +47,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
-import { companyApi } from "@/lib/api"
+import { companiesAPI } from "@/services/api"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -146,7 +146,7 @@ export default function CompaniesPage() {
       if (activeTab !== "all") params.status = activeTab
 
       // Call the API
-      const response = await companyApi.getAll(params)
+      const response = await companiesAPI.getAll(params)
       console.log("API Response:", response) // Debug log
 
       // Check if response has data property or is an array directly
@@ -276,7 +276,7 @@ export default function CompaniesPage() {
       }
 
       // Call the API to create a new company
-      const result = await companyApi.create(companyData)
+      const result = await companiesAPI.create(companyData)
       console.log("Company creation result:", result)
 
       // Close dialog and reset form
@@ -333,7 +333,7 @@ export default function CompaniesPage() {
       }
 
       // Call the API to update the company
-      await companyApi.update(editCompany.id, companyData)
+      await companiesAPI.update(editCompany.id, companyData)
 
       // Close dialog and reset form
       setIsEditCompanyOpen(false)
@@ -371,7 +371,7 @@ export default function CompaniesPage() {
       console.log("Deleting company:", selectedCompany.id)
 
       // Call the API to delete the company
-      await companyApi.delete(selectedCompany.id)
+      await companiesAPI.delete(selectedCompany.id)
 
       // Close dialog and reset selected company
       setIsDeleteCompanyDialogOpen(false)
@@ -425,7 +425,7 @@ export default function CompaniesPage() {
       }
 
       // Call the API to create a new facility
-      await companyApi.createFacility(selectedCompany.id, facilityData)
+      await companiesAPI.createFacility(selectedCompany.id, facilityData)
 
       // Close dialog and reset form
       setIsAddFacilityOpen(false)
@@ -481,7 +481,7 @@ export default function CompaniesPage() {
       }
 
       // Call the API to update the facility
-      await companyApi.updateFacility(selectedCompany.id, editFacility.id, facilityData)
+      await companiesAPI.updateFacility(selectedCompany.id, editFacility.id, facilityData)
 
       // Close dialog and reset form
       setIsEditFacilityOpen(false)
@@ -519,7 +519,7 @@ export default function CompaniesPage() {
       console.log("Deleting facility:", selectedFacility.id)
 
       // Call the API to delete the facility
-      await companyApi.deleteFacility(selectedCompany.id, selectedFacility.id)
+      await companiesAPI.deleteFacility(selectedCompany.id, selectedFacility.id)
 
       // Close dialog and reset selected facility
       setIsDeleteFacilityDialogOpen(false)
@@ -568,7 +568,7 @@ export default function CompaniesPage() {
       }
 
       // Call the API to create a new department
-      await companyApi.createDepartment(selectedFacility.id, departmentData)
+      await companiesAPI.createDepartment(selectedFacility.id, departmentData)
 
       // Close dialog and reset form
       setIsAddDepartmentOpen(false)
@@ -616,7 +616,7 @@ export default function CompaniesPage() {
       }
 
       // Call the API to update the department
-      await companyApi.updateDepartment(selectedFacility.id, editDepartment.id, departmentData)
+      await companiesAPI.updateDepartment(selectedFacility.id, editDepartment.id, departmentData)
 
       // Close dialog and reset form
       setIsEditDepartmentOpen(false)
@@ -650,7 +650,7 @@ export default function CompaniesPage() {
       console.log("Deleting department:", selectedDepartment.id)
 
       // Call the API to delete the department
-      await companyApi.deleteDepartment(selectedFacility.id, selectedDepartment.id)
+      await companiesAPI.deleteDepartment(selectedFacility.id, selectedDepartment.id)
 
       // Close dialog and reset selected department
       setIsDeleteDepartmentDialogOpen(false)
