@@ -47,7 +47,7 @@ export default function SignInPage() {
 
     try {
       // Connect to the backend API for authentication
-      const response = await authApi.login(email, password)
+      const response = await authAPI.login(email, password)
 
       // Check if the user needs to change their password (first-time login)
       if (response.user.requirePasswordChange) {
