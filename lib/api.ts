@@ -286,20 +286,65 @@ export const companyApi = {
   },
 
   update: async (id, data) => {
-    const response = await fetch(`${API_BASE_URL}/companies/${id}`, {
-      method: "PUT",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    })
-    return handleResponse(response)
+    try {
+      const token = authApi.getToken()
+      if (!token) {
+        throw new Error("Authentication required")
+      }
+
+      console.log("Updating company with ID:", id)
+      console.log("Company data being sent:", data)
+
+      const response = await fetch(`${API_BASE_URL}/companies/${id}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error("Server error response:", errorData)
+        throw new Error(errorData.message || "Failed to update company")
+      }
+
+      return await response.json()
+    } catch (error) {
+      console.error("Error in companyApi.update:", error)
+      throw error
+    }
   },
 
   delete: async (id) => {
-    const response = await fetch(`${API_BASE_URL}/companies/${id}`, {
-      method: "DELETE",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-    })
-    return handleResponse(response)
+    try {
+      const token = authApi.getToken()
+      if (!token) {
+        throw new Error("Authentication required")
+      }
+
+      console.log("Deleting company with ID:", id)
+
+      const response = await fetch(`${API_BASE_URL}/companies/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error("Server error response:", errorData)
+        throw new Error(errorData.message || "Failed to delete company")
+      }
+
+      return await response.json()
+    } catch (error) {
+      console.error("Error in companyApi.delete:", error)
+      throw error
+    }
   },
 
   getFacilities: async (companyId) => {
@@ -413,6 +458,190 @@ export const companyApi = {
       return responseData
     } catch (error) {
       console.error("Error in companyApi.createDepartment:", error)
+      throw error
+    }
+  },
+
+  updateFacility: async (companyId, facilityId, data) => {
+    try {
+      console.log("Updating facility with data:", data)
+      console.log("For company ID:", companyId)
+      console.log("Facility ID:", facilityId)
+
+      const token = authApi.getToken()
+      if (!token) {
+        throw new Error("Authentication required")
+      }
+
+      // Validate required fields
+      if (!data.name) {
+        throw new Error("Facility name is required")
+      }
+
+      const response = await fetch(`${API_BASE_URL}/companies/${companyId}/facilities/${facilityId}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error("Server error response:", errorText)
+
+        // Try to parse as JSON, but handle case where it's not JSON
+        let errorMessage = "Failed to update facility"
+        try {
+          const errorData = JSON.parse(errorText)
+          errorMessage = errorData.message || errorMessage
+        } catch (e) {
+          console.error("Error parsing error response:", e)
+          errorMessage = errorText || errorMessage
+        }
+
+        throw new Error(errorMessage)
+      }
+
+      const responseData = await response.json()
+      return responseData
+    } catch (error) {
+      console.error("Error in companyApi.updateFacility:", error)
+      throw error
+    }
+  },
+
+  deleteFacility: async (companyId, facilityId) => {
+    try {
+      console.log("Deleting facility with ID:", facilityId)
+      console.log("For company ID:", companyId)
+
+      const token = authApi.getToken()
+      if (!token) {
+        throw new Error("Authentication required")
+      }
+
+      const response = await fetch(`${API_BASE_URL}/companies/${companyId}/facilities/${facilityId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error("Server error response:", errorText)
+
+        // Try to parse as JSON, but handle case where it's not JSON
+        let errorMessage = "Failed to delete facility"
+        try {
+          const errorData = JSON.parse(errorText)
+          errorMessage = errorData.message || errorMessage
+        } catch (e) {
+          console.error("Error parsing error response:", e)
+          errorMessage = errorText || errorMessage
+        }
+
+        throw new Error(errorMessage)
+      }
+
+      return { success: true }
+    } catch (error) {
+      console.error("Error in companyApi.deleteFacility:", error)
+      throw error
+    }
+  },
+
+  updateDepartment: async (facilityId, departmentId, data) => {
+    try {
+      console.log("Updating department with data:", data)
+      console.log("For facility ID:", facilityId)
+      console.log("Department ID:", departmentId)
+
+      const token = authApi.getToken()
+      if (!token) {
+        throw new Error("Authentication required")
+      }
+
+      // Validate required fields
+      if (!data.name) {
+        throw new Error("Department name is required")
+      }
+
+      const response = await fetch(`${API_BASE_URL}/facilities/${facilityId}/departments/${departmentId}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error("Server error response:", errorText)
+
+        // Try to parse as JSON, but handle case where it's not JSON
+        let errorMessage = "Failed to update department"
+        try {
+          const errorData = JSON.parse(errorText)
+          errorMessage = errorData.message || errorMessage
+        } catch (e) {
+          console.error("Error parsing error response:", e)
+          errorMessage = errorText || errorMessage
+        }
+
+        throw new Error(errorMessage)
+      }
+
+      const responseData = await response.json()
+      return responseData
+    } catch (error) {
+      console.error("Error in companyApi.updateDepartment:", error)
+      throw error
+    }
+  },
+
+  deleteDepartment: async (facilityId, departmentId) => {
+    try {
+      console.log("Deleting department with ID:", departmentId)
+      console.log("For facility ID:", facilityId)
+
+      const token = authApi.getToken()
+      if (!token) {
+        throw new Error("Authentication required")
+      }
+
+      const response = await fetch(`${API_BASE_URL}/facilities/${facilityId}/departments/${departmentId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error("Server error response:", errorText)
+
+        // Try to parse as JSON, but handle case where it's not JSON
+        let errorMessage = "Failed to delete department"
+        try {
+          const errorData = JSON.parse(errorText)
+          errorMessage = errorData.message || errorMessage
+        } catch (e) {
+          console.error("Error parsing error response:", e)
+          errorMessage = errorText || errorMessage
+        }
+
+        throw new Error(errorMessage)
+      }
+
+      return { success: true }
+    } catch (error) {
+      console.error("Error in companyApi.deleteDepartment:", error)
       throw error
     }
   },

@@ -19,6 +19,7 @@ import {
   Mail,
   User,
   Loader2,
+  AlertTriangle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -47,6 +48,16 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
 import { companyApi } from "@/lib/api"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 export default function CompaniesPage() {
   const { toast } = useToast()
@@ -54,16 +65,35 @@ export default function CompaniesPage() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [isAddCompanyOpen, setIsAddCompanyOpen] = useState(false)
+  const [isEditCompanyOpen, setIsEditCompanyOpen] = useState(false)
   const [isAddFacilityOpen, setIsAddFacilityOpen] = useState(false)
+  const [isEditFacilityOpen, setIsEditFacilityOpen] = useState(false)
   const [isAddDepartmentOpen, setIsAddDepartmentOpen] = useState(false)
+  const [isEditDepartmentOpen, setIsEditDepartmentOpen] = useState(false)
   const [selectedCompany, setSelectedCompany] = useState(null)
   const [selectedFacility, setSelectedFacility] = useState(null)
+  const [selectedDepartment, setSelectedDepartment] = useState(null)
   const [expandedCompanies, setExpandedCompanies] = useState([])
   const [expandedFacilities, setExpandedFacilities] = useState([])
   const [activeTab, setActiveTab] = useState("all")
+  const [isDeleteCompanyDialogOpen, setIsDeleteCompanyDialogOpen] = useState(false)
+  const [isDeleteFacilityDialogOpen, setIsDeleteFacilityDialogOpen] = useState(false)
+  const [isDeleteDepartmentDialogOpen, setIsDeleteDepartmentDialogOpen] = useState(false)
+  const [deleteLoading, setDeleteLoading] = useState(false)
 
   // New company form state
   const [newCompany, setNewCompany] = useState({
+    name: "",
+    address: "",
+    contact_name: "",
+    contact_email: "",
+    contact_phone: "",
+    status: "lead",
+  })
+
+  // Edit company form state
+  const [editCompany, setEditCompany] = useState({
+    id: "",
     name: "",
     address: "",
     contact_name: "",
@@ -76,11 +106,34 @@ export default function CompaniesPage() {
   const [newFacility, setNewFacility] = useState({
     name: "",
     location: "",
+    address: "",
+    contact_name: "",
+    contact_email: "",
+    contact_phone: "",
+  })
+
+  // Edit facility form state
+  const [editFacility, setEditFacility] = useState({
+    id: "",
+    name: "",
+    location: "",
+    address: "",
+    contact_name: "",
+    contact_email: "",
+    contact_phone: "",
   })
 
   // New department form state
   const [newDepartment, setNewDepartment] = useState({
     name: "",
+    notes: "",
+  })
+
+  // Edit department form state
+  const [editDepartment, setEditDepartment] = useState({
+    id: "",
+    name: "",
+    notes: "",
   })
 
   // Fetch companies from the API
@@ -148,6 +201,14 @@ export default function CompaniesPage() {
     })
   }
 
+  // Handle edit company input changes
+  const handleEditCompanyInputChange = (field, value) => {
+    setEditCompany({
+      ...editCompany,
+      [field]: value,
+    })
+  }
+
   // Handle facility input changes
   const handleFacilityInputChange = (field, value) => {
     setNewFacility({
@@ -156,10 +217,26 @@ export default function CompaniesPage() {
     })
   }
 
+  // Handle edit facility input changes
+  const handleEditFacilityInputChange = (field, value) => {
+    setEditFacility({
+      ...editFacility,
+      [field]: value,
+    })
+  }
+
   // Handle department input changes
   const handleDepartmentInputChange = (field, value) => {
     setNewDepartment({
       ...newDepartment,
+      [field]: value,
+    })
+  }
+
+  // Handle edit department input changes
+  const handleEditDepartmentInputChange = (field, value) => {
+    setEditDepartment({
+      ...editDepartment,
       [field]: value,
     })
   }
@@ -230,6 +307,95 @@ export default function CompaniesPage() {
     }
   }
 
+  // Handle edit company
+  const handleEditCompany = async () => {
+    try {
+      // Validate form
+      if (!editCompany.name || !editCompany.contact_name || !editCompany.contact_email) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Company name, contact name, and contact email are required.",
+        })
+        return
+      }
+
+      console.log("Updating company:", editCompany)
+
+      // Prepare data for update
+      const companyData = {
+        name: editCompany.name,
+        contact_name: editCompany.contact_name,
+        contact_email: editCompany.contact_email,
+        contact_phone: editCompany.contact_phone || "",
+        status: editCompany.status,
+        address: editCompany.address || "",
+      }
+
+      // Call the API to update the company
+      await companyApi.update(editCompany.id, companyData)
+
+      // Close dialog and reset form
+      setIsEditCompanyOpen(false)
+      setEditCompany({
+        id: "",
+        name: "",
+        address: "",
+        contact_name: "",
+        contact_email: "",
+        contact_phone: "",
+        status: "lead",
+      })
+
+      // Refresh the data
+      fetchCompanies()
+
+      toast({
+        title: "Success",
+        description: "Company updated successfully.",
+      })
+    } catch (error) {
+      console.error("Error updating company:", error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to update company. Please try again.",
+      })
+    }
+  }
+
+  // Handle delete company
+  const handleDeleteCompany = async () => {
+    try {
+      setDeleteLoading(true)
+      console.log("Deleting company:", selectedCompany.id)
+
+      // Call the API to delete the company
+      await companyApi.delete(selectedCompany.id)
+
+      // Close dialog and reset selected company
+      setIsDeleteCompanyDialogOpen(false)
+      setSelectedCompany(null)
+
+      // Refresh the data
+      fetchCompanies()
+
+      toast({
+        title: "Success",
+        description: "Company deleted successfully.",
+      })
+    } catch (error) {
+      console.error("Error deleting company:", error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to delete company. Please try again.",
+      })
+    } finally {
+      setDeleteLoading(false)
+    }
+  }
+
   // Handle add facility
   const handleAddFacility = async () => {
     try {
@@ -248,10 +414,14 @@ export default function CompaniesPage() {
       console.log("Facility data:", newFacility)
       console.log("Company ID:", selectedCompany.id)
 
-      // Simplify the data being sent
+      // Prepare data for API
       const facilityData = {
         name: newFacility.name,
         location: newFacility.location,
+        address: newFacility.address || null,
+        contact_name: newFacility.contact_name || null,
+        contact_email: newFacility.contact_email || null,
+        contact_phone: newFacility.contact_phone || null,
       }
 
       // Call the API to create a new facility
@@ -262,6 +432,10 @@ export default function CompaniesPage() {
       setNewFacility({
         name: "",
         location: "",
+        address: "",
+        contact_name: "",
+        contact_email: "",
+        contact_phone: "",
       })
 
       // Refresh the data
@@ -278,6 +452,95 @@ export default function CompaniesPage() {
         title: "Error",
         description: error.message || "Failed to add facility. Please try again.",
       })
+    }
+  }
+
+  // Handle edit facility
+  const handleEditFacility = async () => {
+    try {
+      // Validate form
+      if (!editFacility.name || !editFacility.location) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Facility name and location are required.",
+        })
+        return
+      }
+
+      console.log("Updating facility:", editFacility)
+
+      // Prepare data for update
+      const facilityData = {
+        name: editFacility.name,
+        location: editFacility.location,
+        address: editFacility.address || null,
+        contact_name: editFacility.contact_name || null,
+        contact_email: editFacility.contact_email || null,
+        contact_phone: editFacility.contact_phone || null,
+      }
+
+      // Call the API to update the facility
+      await companyApi.updateFacility(selectedCompany.id, editFacility.id, facilityData)
+
+      // Close dialog and reset form
+      setIsEditFacilityOpen(false)
+      setEditFacility({
+        id: "",
+        name: "",
+        location: "",
+        address: "",
+        contact_name: "",
+        contact_email: "",
+        contact_phone: "",
+      })
+
+      // Refresh the data
+      fetchCompanies()
+
+      toast({
+        title: "Success",
+        description: "Facility updated successfully.",
+      })
+    } catch (error) {
+      console.error("Error updating facility:", error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to update facility. Please try again.",
+      })
+    }
+  }
+
+  // Handle delete facility
+  const handleDeleteFacility = async () => {
+    try {
+      setDeleteLoading(true)
+      console.log("Deleting facility:", selectedFacility.id)
+
+      // Call the API to delete the facility
+      await companyApi.deleteFacility(selectedCompany.id, selectedFacility.id)
+
+      // Close dialog and reset selected facility
+      setIsDeleteFacilityDialogOpen(false)
+      setSelectedFacility(null)
+
+      // Refresh the data
+      fetchCompanies()
+
+      toast({
+        title: "Success",
+        description: "Facility deleted successfully.",
+      })
+    } catch (error) {
+      console.error("Error deleting facility:", error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to delete facility. Please try again.",
+      })
+    } finally {
+      setDeleteLoading(false)
     }
   }
 
@@ -298,9 +561,10 @@ export default function CompaniesPage() {
       console.log("Adding department to facility:", selectedFacility)
       console.log("Department data:", newDepartment)
 
-      // Simplify the data being sent
+      // Prepare data for API
       const departmentData = {
         name: newDepartment.name,
+        notes: newDepartment.notes || null,
       }
 
       // Call the API to create a new department
@@ -310,6 +574,7 @@ export default function CompaniesPage() {
       setIsAddDepartmentOpen(false)
       setNewDepartment({
         name: "",
+        notes: "",
       })
 
       // Refresh the data
@@ -326,6 +591,87 @@ export default function CompaniesPage() {
         title: "Error",
         description: error.message || "Failed to add department. Please try again.",
       })
+    }
+  }
+
+  // Handle edit department
+  const handleEditDepartment = async () => {
+    try {
+      // Validate form
+      if (!editDepartment.name) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Department name is required.",
+        })
+        return
+      }
+
+      console.log("Updating department:", editDepartment)
+
+      // Prepare data for update
+      const departmentData = {
+        name: editDepartment.name,
+        notes: editDepartment.notes || null,
+      }
+
+      // Call the API to update the department
+      await companyApi.updateDepartment(selectedFacility.id, editDepartment.id, departmentData)
+
+      // Close dialog and reset form
+      setIsEditDepartmentOpen(false)
+      setEditDepartment({
+        id: "",
+        name: "",
+        notes: "",
+      })
+
+      // Refresh the data
+      fetchCompanies()
+
+      toast({
+        title: "Success",
+        description: "Department updated successfully.",
+      })
+    } catch (error) {
+      console.error("Error updating department:", error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to update department. Please try again.",
+      })
+    }
+  }
+
+  // Handle delete department
+  const handleDeleteDepartment = async () => {
+    try {
+      setDeleteLoading(true)
+      console.log("Deleting department:", selectedDepartment.id)
+
+      // Call the API to delete the department
+      await companyApi.deleteDepartment(selectedFacility.id, selectedDepartment.id)
+
+      // Close dialog and reset selected department
+      setIsDeleteDepartmentDialogOpen(false)
+      setSelectedDepartment(null)
+
+      // Refresh the data
+      fetchCompanies()
+
+      toast({
+        title: "Success",
+        description: "Department deleted successfully.",
+      })
+    } catch (error) {
+      console.error("Error deleting department:", error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to delete department. Please try again.",
+      })
+    } finally {
+      setDeleteLoading(false)
     }
   }
 
@@ -473,6 +819,299 @@ export default function CompaniesPage() {
         </Dialog>
       </div>
 
+      {/* Edit Company Dialog */}
+      <Dialog open={isEditCompanyOpen} onOpenChange={setIsEditCompanyOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Edit Company</DialogTitle>
+            <DialogDescription>Update the details of the company.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="edit-company-name">Company Name</Label>
+              <Input
+                id="edit-company-name"
+                placeholder="Enter company name"
+                value={editCompany.name}
+                onChange={(e) => handleEditCompanyInputChange("name", e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-company-address">Address</Label>
+              <Textarea
+                id="edit-company-address"
+                placeholder="Enter company address"
+                value={editCompany.address}
+                onChange={(e) => handleEditCompanyInputChange("address", e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-contact-name">Contact Person</Label>
+                <Input
+                  id="edit-contact-name"
+                  placeholder="Enter contact name"
+                  value={editCompany.contact_name}
+                  onChange={(e) => handleEditCompanyInputChange("contact_name", e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-contact-email">Contact Email</Label>
+                <Input
+                  id="edit-contact-email"
+                  type="email"
+                  placeholder="Enter contact email"
+                  value={editCompany.contact_email}
+                  onChange={(e) => handleEditCompanyInputChange("contact_email", e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-contact-phone">Contact Phone</Label>
+                <Input
+                  id="edit-contact-phone"
+                  placeholder="Enter contact phone"
+                  value={editCompany.contact_phone}
+                  onChange={(e) => handleEditCompanyInputChange("contact_phone", e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-company-status">Status</Label>
+                <select
+                  id="edit-company-status"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  value={editCompany.status}
+                  onChange={(e) => handleEditCompanyInputChange("status", e.target.value)}
+                >
+                  <option value="lead">Lead</option>
+                  <option value="contacted">Contacted</option>
+                  <option value="proposal">Proposal</option>
+                  <option value="contracted">Contracted</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditCompanyOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleEditCompany}
+              disabled={!editCompany.name || !editCompany.contact_name || !editCompany.contact_email}
+            >
+              Update Company
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Facility Dialog */}
+      <Dialog open={isEditFacilityOpen} onOpenChange={setIsEditFacilityOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Facility</DialogTitle>
+            <DialogDescription>
+              Update the facility details for {selectedCompany?.name || "the selected company"}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="edit-facility-name">Facility Name</Label>
+              <Input
+                id="edit-facility-name"
+                placeholder="Enter facility name"
+                value={editFacility.name}
+                onChange={(e) => handleEditFacilityInputChange("name", e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-facility-location">Location</Label>
+              <Input
+                id="edit-facility-location"
+                placeholder="Enter facility location"
+                value={editFacility.location}
+                onChange={(e) => handleEditFacilityInputChange("location", e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-facility-address">Address</Label>
+              <Textarea
+                id="edit-facility-address"
+                placeholder="Enter facility address"
+                value={editFacility.address}
+                onChange={(e) => handleEditFacilityInputChange("address", e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-facility-contact-name">Contact Person</Label>
+                <Input
+                  id="edit-facility-contact-name"
+                  placeholder="Enter contact name"
+                  value={editFacility.contact_name}
+                  onChange={(e) => handleEditFacilityInputChange("contact_name", e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-facility-contact-email">Contact Email</Label>
+                <Input
+                  id="edit-facility-contact-email"
+                  type="email"
+                  placeholder="Enter contact email"
+                  value={editFacility.contact_email}
+                  onChange={(e) => handleEditFacilityInputChange("contact_email", e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-facility-contact-phone">Contact Phone</Label>
+              <Input
+                id="edit-facility-contact-phone"
+                placeholder="Enter contact phone"
+                value={editFacility.contact_phone}
+                onChange={(e) => handleEditFacilityInputChange("contact_phone", e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditFacilityOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleEditFacility} disabled={!editFacility.name || !editFacility.location}>
+              Update Facility
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Department Dialog */}
+      <Dialog open={isEditDepartmentOpen} onOpenChange={setIsEditDepartmentOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Department</DialogTitle>
+            <DialogDescription>
+              Update the department details for {selectedFacility?.name || "the selected facility"}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="edit-department-name">Department Name</Label>
+              <Input
+                id="edit-department-name"
+                placeholder="Enter department name"
+                value={editDepartment.name}
+                onChange={(e) => handleEditDepartmentInputChange("name", e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-department-notes">Notes</Label>
+              <Textarea
+                id="edit-department-notes"
+                placeholder="Enter department notes"
+                value={editDepartment.notes}
+                onChange={(e) => handleEditDepartmentInputChange("notes", e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDepartmentOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleEditDepartment} disabled={!editDepartment.name}>
+              Update Department
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Company Dialog */}
+      <AlertDialog open={isDeleteCompanyDialogOpen} onOpenChange={setIsDeleteCompanyDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the company "{selectedCompany?.name}" and all its facilities and departments.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteCompany} disabled={deleteLoading}>
+              {deleteLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <AlertTriangle className="mr-2 h-4 w-4" />
+                  Delete
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Facility Dialog */}
+      <AlertDialog open={isDeleteFacilityDialogOpen} onOpenChange={setIsDeleteFacilityDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the facility "{selectedFacility?.name}" and all its departments. This action
+              cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteFacility} disabled={deleteLoading}>
+              {deleteLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <AlertTriangle className="mr-2 h-4 w-4" />
+                  Delete
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Department Dialog */}
+      <AlertDialog open={isDeleteDepartmentDialogOpen} onOpenChange={setIsDeleteDepartmentDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the department "{selectedDepartment?.name}". This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteDepartment} disabled={deleteLoading}>
+              {deleteLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <AlertTriangle className="mr-2 h-4 w-4" />
+                  Delete
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -598,11 +1237,30 @@ export default function CompaniesPage() {
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                <DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setSelectedCompany(company)
+                                    setEditCompany({
+                                      id: company.id,
+                                      name: company.name,
+                                      address: company.address || "",
+                                      contact_name: company.contact_name || "",
+                                      contact_email: company.contact_email || "",
+                                      contact_phone: company.contact_phone || "",
+                                      status: company.status || "lead",
+                                    })
+                                    setIsEditCompanyOpen(true)
+                                  }}
+                                >
                                   <Pencil className="mr-2 h-4 w-4" />
                                   Edit
                                 </DropdownMenuItem>
-                                <DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setSelectedCompany(company)
+                                    setIsDeleteCompanyDialogOpen(true)
+                                  }}
+                                >
                                   <Trash2 className="mr-2 h-4 w-4" />
                                   Delete
                                 </DropdownMenuItem>
@@ -674,6 +1332,45 @@ export default function CompaniesPage() {
                         onChange={(e) => handleFacilityInputChange("location", e.target.value)}
                       />
                     </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="facility-address">Address</Label>
+                      <Textarea
+                        id="facility-address"
+                        placeholder="Enter facility address"
+                        value={newFacility.address}
+                        onChange={(e) => handleFacilityInputChange("address", e.target.value)}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="facility-contact-name">Contact Person</Label>
+                        <Input
+                          id="facility-contact-name"
+                          placeholder="Enter contact name"
+                          value={newFacility.contact_name}
+                          onChange={(e) => handleFacilityInputChange("contact_name", e.target.value)}
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="facility-contact-email">Contact Email</Label>
+                        <Input
+                          id="facility-contact-email"
+                          type="email"
+                          placeholder="Enter contact email"
+                          value={newFacility.contact_email}
+                          onChange={(e) => handleFacilityInputChange("contact_email", e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="facility-contact-phone">Contact Phone</Label>
+                      <Input
+                        id="facility-contact-phone"
+                        placeholder="Enter contact phone"
+                        value={newFacility.contact_phone}
+                        onChange={(e) => handleFacilityInputChange("contact_phone", e.target.value)}
+                      />
+                    </div>
                   </div>
                   <DialogFooter>
                     <Button variant="outline" onClick={() => setIsAddFacilityOpen(false)}>
@@ -708,6 +1405,15 @@ export default function CompaniesPage() {
                         placeholder="Enter department name"
                         value={newDepartment.name}
                         onChange={(e) => handleDepartmentInputChange("name", e.target.value)}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="department-notes">Notes</Label>
+                      <Textarea
+                        id="department-notes"
+                        placeholder="Enter department notes"
+                        value={newDepartment.notes}
+                        onChange={(e) => handleDepartmentInputChange("notes", e.target.value)}
                       />
                     </div>
                   </div>
@@ -787,6 +1493,35 @@ export default function CompaniesPage() {
                           }}
                         >
                           <Plus className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            setSelectedCompany(company)
+                            setEditCompany({
+                              id: company.id,
+                              name: company.name,
+                              address: company.address || "",
+                              contact_name: company.contact_name || "",
+                              contact_email: company.contact_email || "",
+                              contact_phone: company.contact_phone || "",
+                              status: company.status || "lead",
+                            })
+                            setIsEditCompanyOpen(true)
+                          }}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            setSelectedCompany(company)
+                            setIsDeleteCompanyDialogOpen(true)
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 text-red-500" />
                         </Button>
                       </div>
                     </div>
@@ -874,6 +1609,37 @@ export default function CompaniesPage() {
                                   >
                                     <Plus className="h-4 w-4" />
                                   </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                      setSelectedCompany(company)
+                                      setSelectedFacility(facility)
+                                      setEditFacility({
+                                        id: facility.id,
+                                        name: facility.name,
+                                        location: facility.location || "",
+                                        address: facility.address || "",
+                                        contact_name: facility.contact_name || "",
+                                        contact_email: facility.contact_email || "",
+                                        contact_phone: facility.contact_phone || "",
+                                      })
+                                      setIsEditFacilityOpen(true)
+                                    }}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                      setSelectedCompany(company)
+                                      setSelectedFacility(facility)
+                                      setIsDeleteFacilityDialogOpen(true)
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4 text-red-500" />
+                                  </Button>
                                 </div>
                               </div>
 
@@ -915,10 +1681,33 @@ export default function CompaniesPage() {
                                                 </div>
                                               </TableCell>
                                               <TableCell className="text-right">
-                                                <Button variant="ghost" size="icon">
+                                                <Button
+                                                  variant="ghost"
+                                                  size="icon"
+                                                  onClick={() => {
+                                                    setSelectedCompany(company)
+                                                    setSelectedFacility(facility)
+                                                    setSelectedDepartment(department)
+                                                    setEditDepartment({
+                                                      id: department.id,
+                                                      name: department.name,
+                                                      notes: department.notes || "",
+                                                    })
+                                                    setIsEditDepartmentOpen(true)
+                                                  }}
+                                                >
                                                   <Pencil className="h-4 w-4" />
                                                 </Button>
-                                                <Button variant="ghost" size="icon">
+                                                <Button
+                                                  variant="ghost"
+                                                  size="icon"
+                                                  onClick={() => {
+                                                    setSelectedCompany(company)
+                                                    setSelectedFacility(facility)
+                                                    setSelectedDepartment(department)
+                                                    setIsDeleteDepartmentDialogOpen(true)
+                                                  }}
+                                                >
                                                   <Trash2 className="h-4 w-4 text-red-500" />
                                                 </Button>
                                               </TableCell>
