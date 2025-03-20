@@ -1,8 +1,8 @@
 // API service for the Energy Management SaaS Platform
 
 // Base API URL - should be set from environment variables in production
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"
-
+//const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"
+const API_BASE_URL = "https://api.enmsgo.com/api"
 // Helper function for handling API responses
 const handleResponse = async (response: Response) => {
   const data = await response.json()
