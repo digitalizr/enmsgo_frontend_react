@@ -6,9 +6,8 @@
 //const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL 
 const API_BASE_URL = "https://api.enmsgo.com"
 //const API_BASE_URL = "http://103.91.67.38:5000"
-
 // Helper function for handling API responses
-const handleResponse = async (response) => {
+const handleResponse = async (response: Response) => {
   const data = await response.json()
 
   if (!response.ok) {
@@ -19,32 +18,41 @@ const handleResponse = async (response) => {
   return data
 }
 
-// Helper function to get auth header
-const authHeader = () => {
-  const token = localStorage.getItem("token")
-  return token ? { Authorization: `Bearer ${token}` } : {}
-}
-
 // Authentication API
-export const authApi = {
-  login: async (email, password) => {
-    const response = await fetch(`${API_BASE_URL}/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    })
-    const data = await handleResponse(response)
+export const authAPI = {
+  async login(email: string, password: string) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      })
 
-    // If user doesn't need to change password, store the token and user in localStorage
-    if (data.token && !data.user.requirePasswordChange) {
-      localStorage.setItem("token", data.token)
-      localStorage.setItem("user", JSON.stringify(data.user))
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw errorData.message || "Login failed"
+      }
+
+      const data = await response.json()
+
+      console.log("API login response:", data)
+
+      // If user doesn't need to change password, store the token and user in localStorage
+      if (data.token && !data.user.requirePasswordChange) {
+        localStorage.setItem("token", data.token)
+        localStorage.setItem("user", JSON.stringify(data.user))
+      }
+
+      return data
+    } catch (error) {
+      console.error("API login error:", error)
+      throw error
     }
-
-    return data
   },
 
-  register: async (userData) => {
+  register: async (userData: any) => {
     const response = await fetch(`${API_BASE_URL}/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -70,7 +78,7 @@ export const authApi = {
   },
 
   // Validate password reset token (for email-based resets)
-  validatePasswordToken: async (token) => {
+  validatePasswordToken: async (token: string) => {
     const response = await fetch(`${API_BASE_URL}/auth/validate-token`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -80,7 +88,7 @@ export const authApi = {
   },
 
   // Reset password with token (for email-based resets)
-  resetPassword: async (token, newPassword) => {
+  resetPassword: async (token: string, newPassword: string) => {
     const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -90,7 +98,7 @@ export const authApi = {
   },
 
   // Change password for first-time login
-  changePasswordFirstTime: async (userId, currentPassword, newPassword, token) => {
+  changePasswordFirstTime: async (userId: string, currentPassword: string, newPassword: string, token: string) => {
     const response = await fetch(`${API_BASE_URL}/auth/change-password-first-time`, {
       method: "POST",
       headers: {
@@ -107,7 +115,7 @@ export const authApi = {
   },
 
   // Request password reset (for forgotten passwords)
-  requestPasswordReset: async (email) => {
+  requestPasswordReset: async (email: string) => {
     const response = await fetch(`${API_BASE_URL}/auth/request-reset`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -115,6 +123,16 @@ export const authApi = {
     })
     return handleResponse(response)
   },
+}
+
+// Helper function to get auth header
+const authHeader = () => {
+  const token = authApi.getToken()
+  if (!token) {
+    console.warn("No auth token found")
+    return {}
+  }
+  return { Authorization: `Bearer ${token}` }
 }
 
 // Smart Meters API

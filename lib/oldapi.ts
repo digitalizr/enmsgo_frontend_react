@@ -1,14 +1,10 @@
 // API service for the Energy Management SaaS Platform
-// This file serves as the central point for all API calls to the backend
 
 // Base API URL - should be set from environment variables in production
-//const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL 
-//const API_BASE_URL = "https://api.enmsgo.com"
-const API_BASE_URL = "http://localhost:3001/api"
-//const API_BASE_URL = "http://103.91.67.38:5000"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"
 
 // Helper function for handling API responses
-const handleResponse = async (response) => {
+const handleResponse = async (response: Response) => {
   const data = await response.json()
 
   if (!response.ok) {
@@ -19,45 +15,9 @@ const handleResponse = async (response) => {
   return data
 }
 
-// Helper function to get auth header
-const authHeader = () => {
-  const token = localStorage.getItem("token")
-  return token ? { Authorization: `Bearer ${token}` } : {}
-}
-
-// Helper function for making API requests with error handling
-const apiRequest = async (endpoint, method = "GET", body = null) => {
-  try {
-    const url = `${API_BASE_URL}${endpoint}`
-    const headers = {
-      ...authHeader(),
-      "Content-Type": "application/json",
-    }
-
-    const options = {
-      method,
-      headers,
-      body: body ? JSON.stringify(body) : null,
-    }
-
-    const response = await fetch(url, options)
-
-    if (!response.ok) {
-      const errorData = await response.json()
-      console.error(`API request failed for ${endpoint}:`, errorData)
-      throw new Error(errorData.message || `API request failed with status ${response.status}`)
-    }
-
-    return await response.json()
-  } catch (error) {
-    console.error(`Error in apiRequest for ${endpoint}:`, error)
-    throw error
-  }
-}
-
 // Authentication API
-export const authAPI = {
-  login: async (email, password) => {
+export const authApi = {
+  async login(email: string, password: string) {
     try {
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: "POST",
@@ -89,7 +49,7 @@ export const authAPI = {
     }
   },
 
-  register: async (userData) => {
+  register: async (userData: any) => {
     const response = await fetch(`${API_BASE_URL}/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -115,7 +75,7 @@ export const authAPI = {
   },
 
   // Validate password reset token (for email-based resets)
-  validatePasswordToken: async (token) => {
+  validatePasswordToken: async (token: string) => {
     const response = await fetch(`${API_BASE_URL}/auth/validate-token`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -125,7 +85,7 @@ export const authAPI = {
   },
 
   // Reset password with token (for email-based resets)
-  resetPassword: async (token, newPassword) => {
+  resetPassword: async (token: string, newPassword: string) => {
     const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -135,7 +95,7 @@ export const authAPI = {
   },
 
   // Change password for first-time login
-  changePasswordFirstTime: async (userId, currentPassword, newPassword, token) => {
+  changePasswordFirstTime: async (userId: string, currentPassword: string, newPassword: string, token: string) => {
     const response = await fetch(`${API_BASE_URL}/auth/change-password-first-time`, {
       method: "POST",
       headers: {
@@ -152,7 +112,7 @@ export const authAPI = {
   },
 
   // Request password reset (for forgotten passwords)
-  requestPasswordReset: async (email) => {
+  requestPasswordReset: async (email: string) => {
     const response = await fetch(`${API_BASE_URL}/auth/request-reset`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -162,8 +122,18 @@ export const authAPI = {
   },
 }
 
+// Helper function to get auth header
+const authHeader = () => {
+  const token = authApi.getToken()
+  if (!token) {
+    console.warn("No auth token found")
+    return {}
+  }
+  return { Authorization: `Bearer ${token}` }
+}
+
 // Smart Meters API
-export const smartMetersAPI = {
+export const smartMeterApi = {
   getAll: async (params = {}) => {
     try {
       const queryString = new URLSearchParams(params).toString()
@@ -180,7 +150,7 @@ export const smartMetersAPI = {
 
       return await response.json()
     } catch (error) {
-      console.error("Error in smartMetersAPI.getAll:", error)
+      console.error("Error in smartMeterApi.getAll:", error)
       throw error
     }
   },
@@ -200,7 +170,7 @@ export const smartMetersAPI = {
 
       return await response.json()
     } catch (error) {
-      console.error("Error in smartMetersAPI.getById:", error)
+      console.error("Error in smartMeterApi.getById:", error)
       throw error
     }
   },
@@ -221,7 +191,7 @@ export const smartMetersAPI = {
 
       return await response.json()
     } catch (error) {
-      console.error("Error in smartMetersAPI.create:", error)
+      console.error("Error in smartMeterApi.create:", error)
       throw error
     }
   },
@@ -242,7 +212,7 @@ export const smartMetersAPI = {
 
       return await response.json()
     } catch (error) {
-      console.error("Error in smartMetersAPI.update:", error)
+      console.error("Error in smartMeterApi.update:", error)
       throw error
     }
   },
@@ -262,14 +232,14 @@ export const smartMetersAPI = {
 
       return await response.json()
     } catch (error) {
-      console.error("Error in smartMetersAPI.delete:", error)
+      console.error("Error in smartMeterApi.delete:", error)
       throw error
     }
   },
 }
 
 // Edge Gateways API
-export const edgeGatewaysAPI = {
+export const edgeGatewayApi = {
   getAll: async (params = {}) => {
     try {
       const queryString = new URLSearchParams(params).toString()
@@ -286,7 +256,7 @@ export const edgeGatewaysAPI = {
 
       return await response.json()
     } catch (error) {
-      console.error("Error in edgeGatewaysAPI.getAll:", error)
+      console.error("Error in edgeGatewayApi.getAll:", error)
       throw error
     }
   },
@@ -306,7 +276,7 @@ export const edgeGatewaysAPI = {
 
       return await response.json()
     } catch (error) {
-      console.error("Error in edgeGatewaysAPI.getById:", error)
+      console.error("Error in edgeGatewayApi.getById:", error)
       throw error
     }
   },
@@ -327,7 +297,7 @@ export const edgeGatewaysAPI = {
 
       return await response.json()
     } catch (error) {
-      console.error("Error in edgeGatewaysAPI.create:", error)
+      console.error("Error in edgeGatewayApi.create:", error)
       throw error
     }
   },
@@ -348,7 +318,7 @@ export const edgeGatewaysAPI = {
 
       return await response.json()
     } catch (error) {
-      console.error("Error in edgeGatewaysAPI.update:", error)
+      console.error("Error in edgeGatewayApi.update:", error)
       throw error
     }
   },
@@ -368,7 +338,7 @@ export const edgeGatewaysAPI = {
 
       return await response.json()
     } catch (error) {
-      console.error("Error in edgeGatewaysAPI.delete:", error)
+      console.error("Error in edgeGatewayApi.delete:", error)
       throw error
     }
   },
@@ -388,7 +358,7 @@ export const edgeGatewaysAPI = {
 
       return await response.json()
     } catch (error) {
-      console.error("Error in edgeGatewaysAPI.getIpAddresses:", error)
+      console.error("Error in edgeGatewayApi.getIpAddresses:", error)
       throw error
     }
   },
@@ -409,7 +379,7 @@ export const edgeGatewaysAPI = {
 
       return await response.json()
     } catch (error) {
-      console.error("Error in edgeGatewaysAPI.addIpAddress:", error)
+      console.error("Error in edgeGatewayApi.addIpAddress:", error)
       throw error
     }
   },
@@ -429,7 +399,7 @@ export const edgeGatewaysAPI = {
 
       return await response.json()
     } catch (error) {
-      console.error("Error in edgeGatewaysAPI.removeIpAddress:", error)
+      console.error("Error in edgeGatewayApi.removeIpAddress:", error)
       throw error
     }
   },
@@ -449,7 +419,7 @@ export const edgeGatewaysAPI = {
 
       return await response.json()
     } catch (error) {
-      console.error("Error in edgeGatewaysAPI.getSpecifications:", error)
+      console.error("Error in edgeGatewayApi.getSpecifications:", error)
       throw error
     }
   },
@@ -470,7 +440,7 @@ export const edgeGatewaysAPI = {
 
       return await response.json()
     } catch (error) {
-      console.error("Error in edgeGatewaysAPI.updateSpecifications:", error)
+      console.error("Error in edgeGatewayApi.updateSpecifications:", error)
       throw error
     }
   },
@@ -490,7 +460,7 @@ export const edgeGatewaysAPI = {
 
       return await response.json()
     } catch (error) {
-      console.error("Error in edgeGatewaysAPI.getConnectionDetails:", error)
+      console.error("Error in edgeGatewayApi.getConnectionDetails:", error)
       throw error
     }
   },
@@ -511,14 +481,14 @@ export const edgeGatewaysAPI = {
 
       return await response.json()
     } catch (error) {
-      console.error("Error in edgeGatewaysAPI.updateConnectionDetails:", error)
+      console.error("Error in edgeGatewayApi.updateConnectionDetails:", error)
       throw error
     }
   },
 }
 
 // Companies API
-export const companiesAPI = {
+export const companyApi = {
   getAll: async (params = {}) => {
     try {
       const queryString = new URLSearchParams(params).toString()
@@ -530,7 +500,7 @@ export const companiesAPI = {
       const data = await handleResponse(response)
       return data // Return the data directly, not wrapped in another object
     } catch (error) {
-      console.error("Error in companiesAPI.getAll:", error)
+      console.error("Error in companyApi.getAll:", error)
       throw error
     }
   },
@@ -545,7 +515,7 @@ export const companiesAPI = {
 
   create: async (data) => {
     try {
-      const token = authAPI.getToken()
+      const token = authApi.getToken()
       if (!token) {
         throw new Error("Authentication required")
       }
@@ -575,14 +545,14 @@ export const companiesAPI = {
 
       return await response.json()
     } catch (error) {
-      console.error("Error in companiesAPI.create:", error)
+      console.error("Error in companyApi.create:", error)
       throw error
     }
   },
 
   update: async (id, data) => {
     try {
-      const token = authAPI.getToken()
+      const token = authApi.getToken()
       if (!token) {
         throw new Error("Authentication required")
       }
@@ -607,14 +577,14 @@ export const companiesAPI = {
 
       return await response.json()
     } catch (error) {
-      console.error("Error in companiesAPI.update:", error)
+      console.error("Error in companyApi.update:", error)
       throw error
     }
   },
 
   delete: async (id) => {
     try {
-      const token = authAPI.getToken()
+      const token = authApi.getToken()
       if (!token) {
         throw new Error("Authentication required")
       }
@@ -637,7 +607,7 @@ export const companiesAPI = {
 
       return await response.json()
     } catch (error) {
-      console.error("Error in companiesAPI.delete:", error)
+      console.error("Error in companyApi.delete:", error)
       throw error
     }
   },
@@ -660,7 +630,7 @@ export const companiesAPI = {
       console.log("Creating facility with data:", data)
       console.log("For company ID:", companyId)
 
-      const token = authAPI.getToken()
+      const token = authApi.getToken()
       if (!token) {
         throw new Error("Authentication required")
       }
@@ -703,7 +673,7 @@ export const companiesAPI = {
       const responseData = await response.json()
       return responseData
     } catch (error) {
-      console.error("Error in companiesAPI.createFacility:", error)
+      console.error("Error in companyApi.createFacility:", error)
       throw error
     }
   },
@@ -713,7 +683,7 @@ export const companiesAPI = {
       console.log("Creating department with data:", data)
       console.log("For facility ID:", facilityId)
 
-      const token = authAPI.getToken()
+      const token = authApi.getToken()
       if (!token) {
         throw new Error("Authentication required")
       }
@@ -752,7 +722,7 @@ export const companiesAPI = {
       const responseData = await response.json()
       return responseData
     } catch (error) {
-      console.error("Error in companiesAPI.createDepartment:", error)
+      console.error("Error in companyApi.createDepartment:", error)
       throw error
     }
   },
@@ -763,7 +733,7 @@ export const companiesAPI = {
       console.log("For company ID:", companyId)
       console.log("Facility ID:", facilityId)
 
-      const token = authAPI.getToken()
+      const token = authApi.getToken()
       if (!token) {
         throw new Error("Authentication required")
       }
@@ -802,7 +772,7 @@ export const companiesAPI = {
       const responseData = await response.json()
       return responseData
     } catch (error) {
-      console.error("Error in companiesAPI.updateFacility:", error)
+      console.error("Error in companyApi.updateFacility:", error)
       throw error
     }
   },
@@ -812,7 +782,7 @@ export const companiesAPI = {
       console.log("Deleting facility with ID:", facilityId)
       console.log("For company ID:", companyId)
 
-      const token = authAPI.getToken()
+      const token = authApi.getToken()
       if (!token) {
         throw new Error("Authentication required")
       }
@@ -844,7 +814,7 @@ export const companiesAPI = {
 
       return { success: true }
     } catch (error) {
-      console.error("Error in companiesAPI.deleteFacility:", error)
+      console.error("Error in companyApi.deleteFacility:", error)
       throw error
     }
   },
@@ -855,7 +825,7 @@ export const companiesAPI = {
       console.log("For facility ID:", facilityId)
       console.log("Department ID:", departmentId)
 
-      const token = authAPI.getToken()
+      const token = authApi.getToken()
       if (!token) {
         throw new Error("Authentication required")
       }
@@ -894,7 +864,7 @@ export const companiesAPI = {
       const responseData = await response.json()
       return responseData
     } catch (error) {
-      console.error("Error in companiesAPI.updateDepartment:", error)
+      console.error("Error in companyApi.updateDepartment:", error)
       throw error
     }
   },
@@ -904,7 +874,7 @@ export const companiesAPI = {
       console.log("Deleting department with ID:", departmentId)
       console.log("For facility ID:", facilityId)
 
-      const token = authAPI.getToken()
+      const token = authApi.getToken()
       if (!token) {
         throw new Error("Authentication required")
       }
@@ -936,186 +906,15 @@ export const companiesAPI = {
 
       return { success: true }
     } catch (error) {
-      console.error("Error in companiesAPI.deleteDepartment:", error)
+      console.error("Error in companyApi.deleteDepartment:", error)
       throw error
     }
   },
 }
 
-// Device Models API
-export const deviceModelsAPI = {
-  getAll: async (params = {}) => {
-    const queryString = new URLSearchParams(params).toString()
-    const response = await fetch(`${API_BASE_URL}/device-models?${queryString}`, {
-      method: "GET",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-    })
-    return handleResponse(response)
-  },
-  getById: async (id) => {
-    const response = await fetch(`${API_BASE_URL}/device-models/${id}`, {
-      method: "GET",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-    })
-    return handleResponse(response)
-  },
-  create: async (data) => {
-    const response = await fetch(`${API_BASE_URL}/device-models`, {
-      method: "POST",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    })
-    return handleResponse(response)
-  },
-  update: async (id, data) => {
-    const response = await fetch(`${API_BASE_URL}/device-models/${id}`, {
-      method: "PUT",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    })
-    return handleResponse(response)
-  },
-  delete: async (id) => {
-    const response = await fetch(`${API_BASE_URL}/device-models/${id}`, {
-      method: "DELETE",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-    })
-    return handleResponse(response)
-  },
-}
-
-// Users API
-export const usersAPI = {
-  getAll: async () => {
-    const response = await fetch(`${API_BASE_URL}/users`, {
-      method: "GET",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-    })
-    return handleResponse(response)
-  },
-  getById: async (id) => {
-    const response = await fetch(`${API_BASE_URL}/users/${id}`, {
-      method: "GET",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-    })
-    return handleResponse(response)
-  },
-  create: async (data) => {
-    const response = await fetch(`${API_BASE_URL}/users`, {
-      method: "POST",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    })
-    return handleResponse(response)
-  },
-  update: async (id, data) => {
-    const response = await fetch(`${API_BASE_URL}/users/${id}`, {
-      method: "PUT",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    })
-    return handleResponse(response)
-  },
-  delete: async (id) => {
-    const response = await fetch(`${API_BASE_URL}/users/${id}`, {
-      method: "DELETE",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-    })
-    return handleResponse(response)
-  },
-  resetPassword: async (id) => {
-    const response = await fetch(`${API_BASE_URL}/users/${id}/reset-password`, {
-      method: "POST",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-    })
-    return handleResponse(response)
-  },
-  manualResetPassword: async (id, newPassword) => {
-    const response = await fetch(`${API_BASE_URL}/users/${id}/reset-password`, {
-      method: "POST",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-      body: JSON.stringify({ newPassword }),
-    })
-    return handleResponse(response)
-  },
-}
-
-// Assignments API
-export const assignmentsAPI = {
-  getAll: async () => {
-    const response = await fetch(`${API_BASE_URL}/assignments`, {
-      method: "GET",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-    })
-    return handleResponse(response)
-  },
-  getById: async (id) => {
-    const response = await fetch(`${API_BASE_URL}/assignments/${id}`, {
-      method: "GET",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-    })
-    return handleResponse(response)
-  },
-  create: async (data) => {
-    const response = await fetch(`${API_BASE_URL}/assignments`, {
-      method: "POST",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    })
-    return handleResponse(response)
-  },
-  update: async (id, data) => {
-    const response = await fetch(`${API_BASE_URL}/assignments/${id}`, {
-      method: "PUT",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    })
-    return handleResponse(response)
-  },
-  delete: async (id) => {
-    const response = await fetch(`${API_BASE_URL}/assignments/${id}`, {
-      method: "DELETE",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-    })
-    return handleResponse(response)
-  },
-  assignEdgeGateway: async (userId, gatewayId) => {
-    const response = await fetch(`${API_BASE_URL}/assignments/assign-edge-gateway`, {
-      method: "POST",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, gatewayId }),
-    })
-    return handleResponse(response)
-  },
-  assignSmartMeters: async (gatewayId, meterIds) => {
-    const response = await fetch(`${API_BASE_URL}/assignments/assign-smart-meters`, {
-      method: "POST",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-      body: JSON.stringify({ gatewayId, meterIds }),
-    })
-    return handleResponse(response)
-  },
-  removeEdgeGateway: async (userId, gatewayId) => {
-    const response = await fetch(`${API_BASE_URL}/assignments/remove-edge-gateway`, {
-      method: "POST",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, gatewayId }),
-    })
-    return handleResponse(response)
-  },
-  removeSmartMeter: async (gatewayId, meterId) => {
-    const response = await fetch(`${API_BASE_URL}/assignments/remove-smart-meter`, {
-      method: "POST",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-      body: JSON.stringify({ gatewayId, meterId }),
-    })
-    return handleResponse(response)
-  },
-}
-
 // Energy Data API
-export const energyDataAPI = {
-  getConsumption: async (meterId, startTime, endTime, interval) => {
+export const energyApi = {
+  getConsumption: async (meterId: string, startTime: string, endTime: string, interval?: string) => {
     const params = new URLSearchParams({
       meterId,
       startTime,
@@ -1130,7 +929,13 @@ export const energyDataAPI = {
     return handleResponse(response)
   },
 
-  getAggregatedData: async (companyId, startTime, endTime, aggregationType, facilityId) => {
+  getAggregatedData: async (
+    companyId: string,
+    startTime: string,
+    endTime: string,
+    aggregationType: string,
+    facilityId?: string,
+  ) => {
     const params = new URLSearchParams({
       companyId,
       startTime,
@@ -1146,7 +951,7 @@ export const energyDataAPI = {
     return handleResponse(response)
   },
 
-  getCostAnalysis: async (companyId, startTime, endTime, facilityId) => {
+  getCostAnalysis: async (companyId: string, startTime: string, endTime: string, facilityId?: string) => {
     const params = new URLSearchParams({
       companyId,
       startTime,
@@ -1162,89 +967,192 @@ export const energyDataAPI = {
   },
 }
 
-// Analytics API
-export const analyticsAPI = {
-  getEnergyConsumption: async (params = {}) => {
-    const queryParams = new URLSearchParams()
-    Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined) queryParams.append(key, value)
+// Alerts API
+export const alertApi = {
+  getAll: async (filters?: any) => {
+    const params = new URLSearchParams(filters)
+
+    const response = await fetch(`${API_BASE_URL}/alerts?${params}`, {
+      method: "GET",
+      headers: { ...authHeader(), "Content-Type": "application/json" },
     })
-
-    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
-    return apiRequest(`/analytics/energy-consumption${query}`)
+    return handleResponse(response)
   },
 
-  getCostAnalysis: async (params = {}) => {
-    const queryParams = new URLSearchParams()
-    Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined) queryParams.append(key, value)
+  getById: async (id: string) => {
+    const response = await fetch(`${API_BASE_URL}/alerts/${id}`, {
+      method: "GET",
+      headers: { ...authHeader(), "Content-Type": "application/json" },
     })
-
-    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
-    return apiRequest(`/analytics/cost-analysis${query}`)
+    return handleResponse(response)
   },
 
-  getDeviceStatistics: async () => {
-    return apiRequest("/analytics/device-statistics")
-  },
-
-  getCompanyStatistics: async () => {
-    return apiRequest("/analytics/company-statistics")
-  },
-
-  getUsageByIndustry: async () => {
-    return apiRequest("/analytics/usage-by-industry")
-  },
-
-  getGrowthTrends: async (params = {}) => {
-    const queryParams = new URLSearchParams()
-    Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined) queryParams.append(key, value)
+  acknowledge: async (id: string) => {
+    const response = await fetch(`${API_BASE_URL}/alerts/${id}/acknowledge`, {
+      method: "PUT",
+      headers: { ...authHeader(), "Content-Type": "application/json" },
     })
+    return handleResponse(response)
+  },
 
-    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
-    return apiRequest(`/analytics/growth-trends${query}`)
+  resolve: async (id: string, notes?: string) => {
+    const response = await fetch(`${API_BASE_URL}/alerts/${id}/resolve`, {
+      method: "PUT",
+      headers: { ...authHeader(), "Content-Type": "application/json" },
+      body: JSON.stringify({ notes }),
+    })
+    return handleResponse(response)
+  },
+
+  getRules: async () => {
+    const response = await fetch(`${API_BASE_URL}/alerts/rules`, {
+      method: "GET",
+      headers: { ...authHeader(), "Content-Type": "application/json" },
+    })
+    return handleResponse(response)
+  },
+
+  createRule: async (ruleData: any) => {
+    const response = await fetch(`${API_BASE_URL}/alerts/rules`, {
+      method: "POST",
+      headers: { ...authHeader(), "Content-Type": "application/json" },
+      body: JSON.stringify(ruleData),
+    })
+    return handleResponse(response)
   },
 }
 
-// Billing API
-export const billingAPI = {
-  getInvoices: async () => {
-    const response = await fetch(`${API_BASE_URL}/billing/invoices`, {
+// AI Insights API
+export const aiApi = {
+  getRecommendations: async (companyId: string, facilityId?: string) => {
+    const params = new URLSearchParams({
+      companyId,
+      ...(facilityId && { facilityId }),
+    })
+
+    const response = await fetch(`${API_BASE_URL}/ai/recommendations?${params}`, {
       method: "GET",
       headers: { ...authHeader(), "Content-Type": "application/json" },
     })
     return handleResponse(response)
   },
 
-  getInvoiceById: async (id) => {
-    const response = await fetch(`${API_BASE_URL}/billing/invoices/${id}`, {
+  getPredictions: async (meterId: string, horizon: string) => {
+    const params = new URLSearchParams({
+      meterId,
+      horizon,
+    })
+
+    const response = await fetch(`${API_BASE_URL}/ai/predictions?${params}`, {
       method: "GET",
       headers: { ...authHeader(), "Content-Type": "application/json" },
     })
     return handleResponse(response)
   },
 
-  createInvoice: async (data) => {
-    const response = await fetch(`${API_BASE_URL}/billing/invoices`, {
+  getAnomalyDetection: async (meterId: string, startTime: string, endTime: string) => {
+    const params = new URLSearchParams({
+      meterId,
+      startTime,
+      endTime,
+    })
+
+    const response = await fetch(`${API_BASE_URL}/ai/anomalies?${params}`, {
+      method: "GET",
+      headers: { ...authHeader(), "Content-Type": "application/json" },
+    })
+    return handleResponse(response)
+  },
+}
+
+// Reports API
+export const reportApi = {
+  getAll: async () => {
+    const response = await fetch(`${API_BASE_URL}/reports`, {
+      method: "GET",
+      headers: { ...authHeader(), "Content-Type": "application/json" },
+    })
+    return handleResponse(response)
+  },
+
+  getById: async (id: string) => {
+    const response = await fetch(`${API_BASE_URL}/reports/${id}`, {
+      method: "GET",
+      headers: { ...authHeader(), "Content-Type": "application/json" },
+    })
+    return handleResponse(response)
+  },
+
+  generate: async (reportData: any) => {
+    const response = await fetch(`${API_BASE_URL}/reports/generate`, {
       method: "POST",
       headers: { ...authHeader(), "Content-Type": "application/json" },
-      body: JSON.stringify(data),
+      body: JSON.stringify(reportData),
     })
     return handleResponse(response)
   },
 
-  updateInvoice: async (id, data) => {
-    const response = await fetch(`${API_BASE_URL}/billing/invoices/${id}`, {
+  download: async (id: string) => {
+    const response = await fetch(`${API_BASE_URL}/reports/${id}/download`, {
+      method: "GET",
+      headers: { ...authHeader() },
+    })
+
+    if (!response.ok) {
+      const error = await response.text()
+      return Promise.reject(error)
+    }
+
+    return response.blob()
+  },
+
+  getTemplates: async () => {
+    const response = await fetch(`${API_BASE_URL}/reports/templates`, {
+      method: "GET",
+      headers: { ...authHeader(), "Content-Type": "application/json" },
+    })
+    return handleResponse(response)
+  },
+}
+
+// Users API
+export const userApi = {
+  getAll: async () => {
+    const response = await fetch(`${API_BASE_URL}/users`, {
+      method: "GET",
+      headers: { ...authHeader(), "Content-Type": "application/json" },
+    })
+    return handleResponse(response)
+  },
+
+  getById: async (id: string) => {
+    const response = await fetch(`${API_BASE_URL}/users/${id}`, {
+      method: "GET",
+      headers: { ...authHeader(), "Content-Type": "application/json" },
+    })
+    return handleResponse(response)
+  },
+
+  create: async (userData: any) => {
+    const response = await fetch(`${API_BASE_URL}/users`, {
+      method: "POST",
+      headers: { ...authHeader(), "Content-Type": "application/json" },
+      body: JSON.stringify(userData),
+    })
+    return handleResponse(response)
+  },
+
+  update: async (id: string, userData: any) => {
+    const response = await fetch(`${API_BASE_URL}/users/${id}`, {
       method: "PUT",
       headers: { ...authHeader(), "Content-Type": "application/json" },
-      body: JSON.stringify(data),
+      body: JSON.stringify(userData),
     })
     return handleResponse(response)
   },
 
-  deleteInvoice: async (id) => {
-    const response = await fetch(`${API_BASE_URL}/billing/invoices/${id}`, {
+  delete: async (id: string) => {
+    const response = await fetch(`${API_BASE_URL}/users/${id}`, {
       method: "DELETE",
       headers: { ...authHeader(), "Content-Type": "application/json" },
     })
