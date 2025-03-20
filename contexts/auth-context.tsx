@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { createContext, useContext, useState, useEffect } from "react"
-import { authAPI } from "@/service/api" // Import the authApi service
+import { authAPI } from "@/services/api" // Import the authApi service
 
 // Define role ID constants
 const ROLE_IDS = {
