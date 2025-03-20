@@ -1209,7 +1209,10 @@ app.get("/api/subscriptions", authenticateToken, async (req, res) => {
   }
 })
 
-// Facilities routes - FIXED ROUTE PATH
+
+
+//hallo
+// Mohan Facilities routes - FIXED ROUTE PATH
 app.post("/api/companies/:companyId/facilities", authenticateToken, async (req, res) => {
   try {
     const { companyId } = req.params
@@ -1281,6 +1284,8 @@ app.post("/api/facilities/:facilityId/departments", authenticateToken, async (re
     if (!name) {
       return res.status(400).json({ message: "Department name is required" })
     }
+
+    
 
     // Check if facility exists
     const facility = await db.oneOrNone("SELECT id FROM facilities WHERE id = $1", [facilityId])
