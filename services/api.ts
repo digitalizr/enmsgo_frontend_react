@@ -196,10 +196,62 @@ export const edgeGatewayApi = {
     })
     return handleResponse(response)
   },
+  getIpAddresses: async (gatewayId) => {
+    const response = await fetch(`${API_BASE_URL}/devices/edge-gateways/${gatewayId}/ip-addresses`, {
+      method: "GET",
+      headers: { ...authHeader(), "Content-Type": "application/json" },
+    })
+    return handleResponse(response)
+  },
+  addIpAddress: async (gatewayId, data) => {
+    const response = await fetch(`${API_BASE_URL}/devices/edge-gateways/${gatewayId}/ip-addresses`, {
+      method: "POST",
+      headers: { ...authHeader(), "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    })
+    return handleResponse(response)
+  },
+  removeIpAddress: async (gatewayId, ipId) => {
+    const response = await fetch(`${API_BASE_URL}/devices/edge-gateways/${gatewayId}/ip-addresses/${ipId}`, {
+      method: "DELETE",
+      headers: { ...authHeader(), "Content-Type": "application/json" },
+    })
+    return handleResponse(response)
+  },
+  getSpecifications: async (gatewayId) => {
+    const response = await fetch(`${API_BASE_URL}/devices/edge-gateways/${gatewayId}/specifications`, {
+      method: "GET",
+      headers: { ...authHeader(), "Content-Type": "application/json" },
+    })
+    return handleResponse(response)
+  },
+  updateSpecifications: async (gatewayId, data) => {
+    const response = await fetch(`${API_BASE_URL}/devices/edge-gateways/${gatewayId}/specifications`, {
+      method: "PUT",
+      headers: { ...authHeader(), "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    })
+    return handleResponse(response)
+  },
+  getConnectionDetails: async (gatewayId) => {
+    const response = await fetch(`${API_BASE_URL}/devices/edge-gateways/${gatewayId}/connection-details`, {
+      method: "GET",
+      headers: { ...authHeader(), "Content-Type": "application/json" },
+    })
+    return handleResponse(response)
+  },
+  updateConnectionDetails: async (gatewayId, data) => {
+    const response = await fetch(`${API_BASE_URL}/devices/edge-gateways/${gatewayId}/connection-details`, {
+      method: "PUT",
+      headers: { ...authHeader(), "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    })
+    return handleResponse(response)
+  },
 }
 
 // Companies API
-export const companyApi = {
+export const companyAPI = {
   getAll: async (params = {}) => {
     const queryString = new URLSearchParams(params).toString()
     const response = await fetch(`${API_BASE_URL}/companies?${queryString}`, {
@@ -312,6 +364,62 @@ export const deviceModelApi = {
   },
 }
 
+// Users API
+export const userAPI = {
+  getAll: async () => {
+    const response = await fetch(`${API_BASE_URL}/users`, {
+      method: "GET",
+      headers: { ...authHeader(), "Content-Type": "application/json" },
+    })
+    return handleResponse(response)
+  },
+  getById: async (id) => {
+    const response = await fetch(`${API_BASE_URL}/users/${id}`, {
+      method: "GET",
+      headers: { ...authHeader(), "Content-Type": "application/json" },
+    })
+    return handleResponse(response)
+  },
+  create: async (data) => {
+    const response = await fetch(`${API_BASE_URL}/users`, {
+      method: "POST",
+      headers: { ...authHeader(), "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    })
+    return handleResponse(response)
+  },
+  update: async (id, data) => {
+    const response = await fetch(`${API_BASE_URL}/users/${id}`, {
+      method: "PUT",
+      headers: { ...authHeader(), "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    })
+    return handleResponse(response)
+  },
+  delete: async (id) => {
+    const response = await fetch(`${API_BASE_URL}/users/${id}`, {
+      method: "DELETE",
+      headers: { ...authHeader(), "Content-Type": "application/json" },
+    })
+    return handleResponse(response)
+  },
+  resetPassword: async (id) => {
+    const response = await fetch(`${API_BASE_URL}/users/${id}/reset-password`, {
+      method: "POST",
+      headers: { ...authHeader(), "Content-Type": "application/json" },
+    })
+    return handleResponse(response)
+  },
+  manualResetPassword: async (id, newPassword) => {
+    const response = await fetch(`${API_BASE_URL}/users/${id}/manual-reset-password`, {
+      method: "POST",
+      headers: { ...authHeader(), "Content-Type": "application/json" },
+      body: JSON.stringify({ newPassword }),
+    })
+    return handleResponse(response)
+  },
+}
+
 // Assignments API
 export const assignmentApi = {
   getAll: async () => {
@@ -351,142 +459,35 @@ export const assignmentApi = {
     })
     return handleResponse(response)
   },
-}
-
-export const userAPI = {
-  getAll: async () => {
-    const response = await fetch(`${API_BASE_URL}/users`, {
-      method: "GET",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-    })
-    return handleResponse(response)
-  },
-  create: async (data) => {
-    const response = await fetch(`${API_BASE_URL}/users`, {
+  assignEdgeGateway: async (userId, gatewayId) => {
+    const response = await fetch(`${API_BASE_URL}/assignments/assign-edge-gateway`, {
       method: "POST",
       headers: { ...authHeader(), "Content-Type": "application/json" },
-      body: JSON.stringify(data),
+      body: JSON.stringify({ userId, gatewayId }),
     })
     return handleResponse(response)
   },
-  delete: async (id) => {
-    const response = await fetch(`${API_BASE_URL}/users/${id}`, {
-      method: "DELETE",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-    })
-    return handleResponse(response)
-  },
-  resetPassword: async (id) => {
-    const response = await fetch(`${API_BASE_URL}/users/${id}/reset-password`, {
+  assignSmartMeters: async (gatewayId, meterIds) => {
+    const response = await fetch(`${API_BASE_URL}/assignments/assign-smart-meters`, {
       method: "POST",
       headers: { ...authHeader(), "Content-Type": "application/json" },
+      body: JSON.stringify({ gatewayId, meterIds }),
     })
     return handleResponse(response)
   },
-  manualResetPassword: async (id, newPassword) => {
-    const response = await fetch(`${API_BASE_URL}/users/${id}/manual-reset-password`, {
+  removeEdgeGateway: async (userId, gatewayId) => {
+    const response = await fetch(`${API_BASE_URL}/assignments/remove-edge-gateway`, {
       method: "POST",
       headers: { ...authHeader(), "Content-Type": "application/json" },
-      body: JSON.stringify({ newPassword }),
+      body: JSON.stringify({ userId, gatewayId }),
     })
     return handleResponse(response)
   },
-}
-
-export const companyAPI = {
-  getAll: async (params = {}) => {
-    const queryString = new URLSearchParams(params).toString()
-    const response = await fetch(`${API_BASE_URL}/companies?${queryString}`, {
-      method: "GET",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-    })
-    return handleResponse(response)
-  },
-  getFacilities: async (companyId) => {
-    const response = await fetch(`${API_BASE_URL}/companies/${companyId}/facilities`, {
-      method: "GET",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-    })
-    return handleResponse(response)
-  },
-  getDepartments: async (facilityId) => {
-    const response = await fetch(`${API_BASE_URL}/facilities/${facilityId}/departments`, {
-      method: "GET",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-    })
-    return handleResponse(response)
-  },
-}
-
-export const edgeGatewaysAPI = {
-  getAll: async (params = {}) => {
-    const queryString = new URLSearchParams(params).toString()
-    const response = await fetch(`${API_BASE_URL}/devices/edge-gateways?${queryString}`, {
-      method: "GET",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-    })
-    return handleResponse(response)
-  },
-  getIpAddresses: async (gatewayId) => {
-    const response = await fetch(`${API_BASE_URL}/devices/edge-gateways/${gatewayId}/ip-addresses`, {
-      method: "GET",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-    })
-    return handleResponse(response)
-  },
-  addIpAddress: async (gatewayId, data) => {
-    const response = await fetch(`${API_BASE_URL}/devices/edge-gateways/${gatewayId}/ip-addresses`, {
+  removeSmartMeter: async (gatewayId, meterId) => {
+    const response = await fetch(`${API_BASE_URL}/assignments/remove-smart-meter`, {
       method: "POST",
       headers: { ...authHeader(), "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    })
-    return handleResponse(response)
-  },
-  removeIpAddress: async (gatewayId, ipId) => {
-    const response = await fetch(`${API_BASE_URL}/devices/edge-gateways/${gatewayId}/ip-addresses/${ipId}`, {
-      method: "DELETE",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-    })
-    return handleResponse(response)
-  },
-  getSpecifications: async (gatewayId) => {
-    const response = await fetch(`${API_BASE_URL}/devices/edge-gateways/${gatewayId}/specifications`, {
-      method: "GET",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-    })
-    return handleResponse(response)
-  },
-  updateSpecifications: async (gatewayId, data) => {
-    const response = await fetch(`${API_BASE_URL}/devices/edge-gateways/${gatewayId}/specifications`, {
-      method: "PUT",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    })
-    return handleResponse(response)
-  },
-  getConnectionDetails: async (gatewayId) => {
-    const response = await fetch(`${API_BASE_URL}/devices/edge-gateways/${gatewayId}/connection-details`, {
-      method: "GET",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-    })
-    return handleResponse(response)
-  },
-  updateConnectionDetails: async (gatewayId, data) => {
-    const response = await fetch(`${API_BASE_URL}/devices/edge-gateways/${gatewayId}/connection-details`, {
-      method: "PUT",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    })
-    return handleResponse(response)
-  },
-}
-
-export const smartMetersAPI = {
-  getAll: async (params = {}) => {
-    const queryString = new URLSearchParams(params).toString()
-    const response = await fetch(`${API_BASE_URL}/devices/smart-meters?${queryString}`, {
-      method: "GET",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
+      body: JSON.stringify({ gatewayId, meterId }),
     })
     return handleResponse(response)
   },

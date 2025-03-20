@@ -125,7 +125,11 @@ export const authApi = {
 // Helper function to get auth header
 const authHeader = () => {
   const token = authApi.getToken()
-  return token ? { Authorization: `Bearer ${token}` } : {}
+  if (!token) {
+    console.warn("No auth token found")
+    return {}
+  }
+  return { Authorization: `Bearer ${token}` }
 }
 
 // Smart Meters API
@@ -220,15 +224,23 @@ export const edgeGatewayApi = {
 
 // Companies API
 export const companyApi = {
-  getAll: async () => {
-    const response = await fetch(`${API_BASE_URL}/companies`, {
-      method: "GET",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-    })
-    return handleResponse(response)
+  getAll: async (params = {}) => {
+    try {
+      const queryString = new URLSearchParams(params).toString()
+      const response = await fetch(`${API_BASE_URL}/companies?${queryString}`, {
+        method: "GET",
+        headers: { ...authHeader(), "Content-Type": "application/json" },
+      })
+
+      const data = await handleResponse(response)
+      return data // Return the data directly, not wrapped in another object
+    } catch (error) {
+      console.error("Error in companyApi.getAll:", error)
+      throw error
+    }
   },
 
-  getById: async (id: string) => {
+  getById: async (id) => {
     const response = await fetch(`${API_BASE_URL}/companies/${id}`, {
       method: "GET",
       headers: { ...authHeader(), "Content-Type": "application/json" },
@@ -236,25 +248,53 @@ export const companyApi = {
     return handleResponse(response)
   },
 
-  create: async (companyData: any) => {
-    const response = await fetch(`${API_BASE_URL}/companies`, {
-      method: "POST",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-      body: JSON.stringify(companyData),
-    })
-    return handleResponse(response)
+  create: async (data) => {
+    try {
+      const token = authApi.getToken()
+      if (!token) {
+        throw new Error("Authentication required")
+      }
+
+      console.log("Creating company with token:", token.substring(0, 10) + "...") // Log partial token for debugging
+      console.log("Company data being sent:", data) // Log the data being sent
+
+      // Ensure required fields are present
+      if (!data.name || !data.contact_name || !data.contact_email) {
+        throw new Error("Company name, contact name, and contact email are required")
+      }
+
+      const response = await fetch(`${API_BASE_URL}/companies`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error("Server error response:", errorData) // Log the full error response
+        throw new Error(errorData.message || "Failed to create company")
+      }
+
+      return await response.json()
+    } catch (error) {
+      console.error("Error in companyApi.create:", error)
+      throw error
+    }
   },
 
-  update: async (id: string, companyData: any) => {
+  update: async (id, data) => {
     const response = await fetch(`${API_BASE_URL}/companies/${id}`, {
       method: "PUT",
       headers: { ...authHeader(), "Content-Type": "application/json" },
-      body: JSON.stringify(companyData),
+      body: JSON.stringify(data),
     })
     return handleResponse(response)
   },
 
-  delete: async (id: string) => {
+  delete: async (id) => {
     const response = await fetch(`${API_BASE_URL}/companies/${id}`, {
       method: "DELETE",
       headers: { ...authHeader(), "Content-Type": "application/json" },
@@ -262,12 +302,119 @@ export const companyApi = {
     return handleResponse(response)
   },
 
-  getFacilities: async (companyId: string) => {
-    const response = await fetch(`${API_BASE_URL}/companies/${companyId}/facilities`, {
-      method: "GET",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-    })
-    return handleResponse(response)
+  getFacilities: async (companyId) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/companies/${companyId}/facilities`, {
+        method: "GET",
+        headers: { ...authHeader(), "Content-Type": "application/json" },
+      })
+      return handleResponse(response)
+    } catch (error) {
+      console.error("Error fetching facilities:", error)
+      throw error
+    }
+  },
+
+  createFacility: async (companyId, data) => {
+    try {
+      console.log("Creating facility with data:", data)
+      console.log("For company ID:", companyId)
+
+      const token = authApi.getToken()
+      if (!token) {
+        throw new Error("Authentication required")
+      }
+
+      // Validate required fields
+      if (!data.name) {
+        throw new Error("Facility name is required")
+      }
+
+      // Make sure we're using the correct API URL
+      const url = `${API_BASE_URL}/companies/${companyId}/facilities`
+      console.log("API URL:", url)
+
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error("Server error response:", errorText)
+
+        // Try to parse as JSON, but handle case where it's not JSON
+        let errorMessage = "Failed to create facility"
+        try {
+          const errorData = JSON.parse(errorText)
+          errorMessage = errorData.message || errorMessage
+        } catch (e) {
+          console.error("Error parsing error response:", e)
+          errorMessage = errorText || errorMessage
+        }
+
+        throw new Error(errorMessage)
+      }
+
+      const responseData = await response.json()
+      return responseData
+    } catch (error) {
+      console.error("Error in companyApi.createFacility:", error)
+      throw error
+    }
+  },
+
+  createDepartment: async (facilityId, data) => {
+    try {
+      console.log("Creating department with data:", data)
+      console.log("For facility ID:", facilityId)
+
+      const token = authApi.getToken()
+      if (!token) {
+        throw new Error("Authentication required")
+      }
+
+      // Validate required fields
+      if (!data.name) {
+        throw new Error("Department name is required")
+      }
+
+      const response = await fetch(`${API_BASE_URL}/facilities/${facilityId}/departments`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error("Server error response:", errorText)
+
+        // Try to parse as JSON, but handle case where it's not JSON
+        let errorMessage = "Failed to create department"
+        try {
+          const errorData = JSON.parse(errorText)
+          errorMessage = errorData.message || errorMessage
+        } catch (e) {
+          console.error("Error parsing error response:", e)
+          errorMessage = errorText || errorMessage
+        }
+
+        throw new Error(errorMessage)
+      }
+
+      const responseData = await response.json()
+      return responseData
+    } catch (error) {
+      console.error("Error in companyApi.createDepartment:", error)
+      throw error
+    }
   },
 }
 

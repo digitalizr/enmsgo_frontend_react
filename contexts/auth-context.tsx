@@ -111,6 +111,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Store user data in localStorage
       localStorage.setItem("user", JSON.stringify(userData))
 
+      // Log the stored user data for debugging
+      const storedUser = localStorage.getItem("user")
+      console.log("Stored user data:", storedUser)
+
       return Promise.resolve()
     } catch (error) {
       console.error("Login error:", error)

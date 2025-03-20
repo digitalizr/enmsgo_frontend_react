@@ -1,5 +1,7 @@
 "use client"
 
+import { DialogTrigger } from "@/components/ui/dialog"
+
 import { useState, useEffect } from "react"
 import {
   Building,
@@ -35,7 +37,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
@@ -45,7 +46,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
-import { companyApi } from "@/services/api"
+import { companyApi } from "@/lib/api"
 
 export default function CompaniesPage() {
   const { toast } = useToast()
@@ -93,9 +94,14 @@ export default function CompaniesPage() {
 
       // Call the API
       const response = await companyApi.getAll(params)
-      setCompanies(response.data)
+      console.log("API Response:", response) // Debug log
+
+      // Check if response has data property or is an array directly
+      const companiesData = response.data || response || []
+      setCompanies(companiesData)
     } catch (error) {
       console.error("Error fetching companies:", error)
+      setCompanies([]) // Set to empty array on error
       toast({
         variant: "destructive",
         title: "Error",
@@ -177,8 +183,24 @@ export default function CompaniesPage() {
         return
       }
 
+      // Log the current user for debugging
+      const user = JSON.parse(localStorage.getItem("user") || "{}")
+      console.log("Current user:", user)
+      console.log("Submitting company data:", newCompany)
+
+      // Simplify the data being sent to ensure only required fields are included
+      const companyData = {
+        name: newCompany.name,
+        contact_name: newCompany.contact_name,
+        contact_email: newCompany.contact_email,
+        contact_phone: newCompany.contact_phone || "",
+        status: newCompany.status || "lead",
+        address: newCompany.address || "",
+      }
+
       // Call the API to create a new company
-      await companyApi.create(newCompany)
+      const result = await companyApi.create(companyData)
+      console.log("Company creation result:", result)
 
       // Close dialog and reset form
       setIsAddCompanyOpen(false)
@@ -221,8 +243,19 @@ export default function CompaniesPage() {
         return
       }
 
+      // Log the data being sent
+      console.log("Adding facility to company:", selectedCompany)
+      console.log("Facility data:", newFacility)
+      console.log("Company ID:", selectedCompany.id)
+
+      // Simplify the data being sent
+      const facilityData = {
+        name: newFacility.name,
+        location: newFacility.location,
+      }
+
       // Call the API to create a new facility
-      await companyApi.createFacility(selectedCompany.id, newFacility)
+      await companyApi.createFacility(selectedCompany.id, facilityData)
 
       // Close dialog and reset form
       setIsAddFacilityOpen(false)
@@ -261,8 +294,17 @@ export default function CompaniesPage() {
         return
       }
 
+      // Log the data being sent
+      console.log("Adding department to facility:", selectedFacility)
+      console.log("Department data:", newDepartment)
+
+      // Simplify the data being sent
+      const departmentData = {
+        name: newDepartment.name,
+      }
+
       // Call the API to create a new department
-      await companyApi.createDepartment(selectedFacility.id, newDepartment)
+      await companyApi.createDepartment(selectedFacility.id, departmentData)
 
       // Close dialog and reset form
       setIsAddDepartmentOpen(false)
@@ -287,15 +329,22 @@ export default function CompaniesPage() {
     }
   }
 
-  // Count total facilities and departments
-  const totalFacilities = companies.reduce((total, company) => total + company.facilities?.length || 0, 0)
-  const totalDepartments = companies.reduce(
-    (total, company) =>
-      total +
-      (company.facilities?.reduce((facilityTotal, facility) => facilityTotal + facility.departments?.length || 0, 0) ||
-        0),
-    0,
-  )
+  // Count total facilities and departments - with safety checks
+  const totalFacilities = Array.isArray(companies)
+    ? companies.reduce((total, company) => total + (company.facilities?.length || 0), 0)
+    : 0
+
+  const totalDepartments = Array.isArray(companies)
+    ? companies.reduce(
+        (total, company) =>
+          total +
+          (company.facilities?.reduce(
+            (facilityTotal, facility) => facilityTotal + (facility.departments?.length || 0),
+            0,
+          ) || 0),
+        0,
+      )
+    : 0
 
   // Get status badge
   const getStatusBadge = (status) => {
@@ -431,9 +480,9 @@ export default function CompaniesPage() {
             <Building className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{companies.length}</div>
+            <div className="text-2xl font-bold">{companies?.length || 0}</div>
             <p className="text-xs text-muted-foreground">
-              {companies.filter((c) => c.status === "contracted").length} contracted
+              {Array.isArray(companies) ? companies.filter((c) => c.status === "contracted").length : 0} contracted
             </p>
           </CardContent>
         </Card>
@@ -519,7 +568,7 @@ export default function CompaniesPage() {
                           </div>
                         </TableCell>
                       </TableRow>
-                    ) : companies.length === 0 ? (
+                    ) : !Array.isArray(companies) || companies.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={7} className="h-24 text-center">
                           No companies found.
@@ -534,7 +583,7 @@ export default function CompaniesPage() {
                           <TableCell>{company.facilities?.length || 0}</TableCell>
                           <TableCell>
                             {company.facilities?.reduce(
-                              (total, facility) => total + facility.departments?.length || 0,
+                              (total, facility) => total + (facility.departments?.length || 0),
                               0,
                             ) || 0}
                           </TableCell>
@@ -681,7 +730,7 @@ export default function CompaniesPage() {
                 <div className="flex h-40 items-center justify-center">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
-              ) : companies.length === 0 ? (
+              ) : !Array.isArray(companies) || companies.length === 0 ? (
                 <div className="flex h-40 items-center justify-center rounded-md border border-dashed">
                   <div className="flex flex-col items-center text-center">
                     <Building className="h-10 w-10 text-muted-foreground" />
@@ -724,7 +773,7 @@ export default function CompaniesPage() {
                         </Badge>
                         <Badge variant="outline" className="ml-2">
                           {company.facilities?.reduce(
-                            (total, facility) => total + facility.departments?.length || 0,
+                            (total, facility) => total + (facility.departments?.length || 0),
                             0,
                           ) || 0}{" "}
                           Departments
