@@ -73,11 +73,11 @@ export default function SmartMetersPage() {
         search: filters.search,
       })
 
-      setSmartMeters(response.data.data)
-      setPagination(response.data.pagination)
+      setSmartMeters(response.data)
+      setPagination(response.pagination)
       setError(null)
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to fetch smart meters")
+      setError(err.message || "Failed to fetch smart meters")
       toast({
         variant: "destructive",
         title: "Error",
@@ -96,7 +96,7 @@ export default function SmartMetersPage() {
         device_type: "smart_meter",
       })
 
-      const models = response.data.data
+      const models = response.data
       setDeviceModels(models)
 
       // Extract unique manufacturers
@@ -184,7 +184,7 @@ export default function SmartMetersPage() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: err.response?.data?.message || "Failed to add smart meter",
+        description: err.message || "Failed to add smart meter",
       })
       console.error("Error adding smart meter:", err)
     }
@@ -205,7 +205,7 @@ export default function SmartMetersPage() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: err.response?.data?.message || "Failed to update smart meter",
+        description: err.message || "Failed to update smart meter",
       })
       console.error("Error updating smart meter:", err)
     }
@@ -226,7 +226,7 @@ export default function SmartMetersPage() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: err.response?.data?.message || "Failed to delete smart meter",
+        description: err.message || "Failed to delete smart meter",
       })
       console.error("Error deleting smart meter:", err)
     }
@@ -733,4 +733,3 @@ export default function SmartMetersPage() {
     </div>
   )
 }
-

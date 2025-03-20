@@ -42,7 +42,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
-import { userAPI, companyAPI } from "@/lib/api"
+import { usersAPI, companiesAPI } from "@/lib/api"
 
 export default function UsersPage() {
   const { toast } = useToast()
@@ -83,8 +83,8 @@ export default function UsersPage() {
   const fetchUsers = async () => {
     try {
       setLoading(true)
-      const response = await userAPI.getAll()
-      setUsers(response.data)
+      const response = await usersAPI.getAll()
+      setUsers(response.data || [])
     } catch (error) {
       console.error("Error fetching users:", error)
       toast({
@@ -92,6 +92,7 @@ export default function UsersPage() {
         title: "Error",
         description: "Failed to fetch users. Please try again.",
       })
+      setUsers([]) // Set to empty array on error
     } finally {
       setLoading(false)
     }
@@ -100,8 +101,8 @@ export default function UsersPage() {
   // Fetch companies
   const fetchCompanies = async () => {
     try {
-      const response = await companyAPI.getAll()
-      setCompanies(response.data)
+      const response = await companiesAPI.getAll()
+      setCompanies(response.data || [])
     } catch (error) {
       console.error("Error fetching companies:", error)
       toast({
@@ -109,6 +110,7 @@ export default function UsersPage() {
         title: "Error",
         description: "Failed to fetch companies. Please try again.",
       })
+      setCompanies([]) // Set to empty array on error
     }
   }
 
@@ -145,8 +147,8 @@ export default function UsersPage() {
     if (selectedCompanyId) {
       const fetchFacilities = async () => {
         try {
-          const response = await companyAPI.getFacilities(selectedCompanyId)
-          setAvailableFacilities(response.data)
+          const response = await companiesAPI.getFacilities(selectedCompanyId)
+          setAvailableFacilities(response.data || [])
           setSelectedFacilityId("")
           setAvailableDepartments([])
 
@@ -159,6 +161,7 @@ export default function UsersPage() {
           })
         } catch (error) {
           console.error("Error fetching facilities:", error)
+          setAvailableFacilities([]) // Set to empty array on error
         }
       }
       fetchFacilities()
@@ -174,8 +177,8 @@ export default function UsersPage() {
     if (selectedFacilityId && selectedCompanyId) {
       const fetchDepartments = async () => {
         try {
-          const response = await companyAPI.getDepartments(selectedFacilityId)
-          setAvailableDepartments(response.data)
+          const response = await companiesAPI.getDepartments(selectedFacilityId)
+          setAvailableDepartments(response.data || [])
 
           // Update new user form
           setNewUser({
@@ -185,6 +188,7 @@ export default function UsersPage() {
           })
         } catch (error) {
           console.error("Error fetching departments:", error)
+          setAvailableDepartments([]) // Set to empty array on error
         }
       }
       fetchDepartments()
@@ -231,7 +235,7 @@ export default function UsersPage() {
       }
 
       // Add the user with the generated password
-      await userAPI.create({
+      await usersAPI.create({
         ...newUser,
         password: generatedPassword,
         require_password_change: true,
@@ -257,7 +261,7 @@ export default function UsersPage() {
   // Handle password reset
   const handlePasswordReset = async () => {
     try {
-      await userAPI.resetPassword(selectedUser.id)
+      await usersAPI.resetPassword(selectedUser.id)
       toast({
         title: "Success",
         description: "Password reset email has been sent to the user.",
@@ -276,7 +280,7 @@ export default function UsersPage() {
   // Handle manual password reset
   const handleManualPasswordReset = async () => {
     try {
-      await userAPI.manualResetPassword(selectedUser.id, manualPassword)
+      await usersAPI.manualResetPassword(selectedUser.id, manualPassword)
       toast({
         title: "Success",
         description: "Password has been reset successfully.",
@@ -296,7 +300,7 @@ export default function UsersPage() {
   // Handle delete user
   const handleDeleteUser = async () => {
     try {
-      await userAPI.delete(selectedUser.id)
+      await usersAPI.delete(selectedUser.id)
       toast({
         title: "Success",
         description: "User deleted successfully.",
@@ -318,7 +322,7 @@ export default function UsersPage() {
       user.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.company?.name.toLowerCase().includes(searchTerm.toLowerCase())
+      (user.company?.name || "").toLowerCase().includes(searchTerm.toLowerCase())
 
     const matchesTab =
       activeTab === "all" || (activeTab === "active" && user.is_active) || (activeTab === "inactive" && !user.is_active)
@@ -338,13 +342,13 @@ export default function UsersPage() {
     if (user.company?.id) {
       const fetchFacilities = async () => {
         try {
-          const response = await companyAPI.getFacilities(user.company.id)
-          setAvailableFacilities(response.data)
+          const response = await companiesAPI.getFacilities(user.company.id)
+          setAvailableFacilities(response.data || [])
 
           // Find available departments for this facility
           if (user.facility?.id) {
-            const deptResponse = await companyAPI.getDepartments(user.facility.id)
-            setAvailableDepartments(deptResponse.data)
+            const deptResponse = await companiesAPI.getDepartments(user.facility.id)
+            setAvailableDepartments(deptResponse.data || [])
           }
         } catch (error) {
           console.error("Error fetching facilities:", error)
@@ -433,7 +437,7 @@ export default function UsersPage() {
             <Building className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{companies.length}</div>
+            <div className="text-2xl font-bold">{companies ? companies.length : 0}</div>
           </CardContent>
         </Card>
       </div>
@@ -643,11 +647,12 @@ export default function UsersPage() {
                     <SelectValue placeholder="Select company" />
                   </SelectTrigger>
                   <SelectContent>
-                    {companies.map((company) => (
-                      <SelectItem key={company.id} value={company.id}>
-                        {company.name}
-                      </SelectItem>
-                    ))}
+                    {companies &&
+                      companies.map((company) => (
+                        <SelectItem key={company.id} value={company.id}>
+                          {company.name}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -841,11 +846,12 @@ export default function UsersPage() {
                       <SelectValue placeholder="Select company" />
                     </SelectTrigger>
                     <SelectContent>
-                      {companies.map((company) => (
-                        <SelectItem key={company.id} value={company.id}>
-                          {company.name}
-                        </SelectItem>
-                      ))}
+                      {companies &&
+                        companies.map((company) => (
+                          <SelectItem key={company.id} value={company.id}>
+                            {company.name}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -1042,4 +1048,3 @@ export default function UsersPage() {
     </div>
   )
 }
-

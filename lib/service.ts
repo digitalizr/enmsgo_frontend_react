@@ -1,11 +1,14 @@
 // API service for the Energy Management SaaS Platform
+// This file serves as the central point for all API calls to the backend
 
 // Base API URL - should be set from environment variables in production
-//const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"
-//const API_BASE_URL = "https://api.enmsgo.com/api"
-const API_BASE_URL =  "http://localhost:3001/api"
+//const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL 
+const API_BASE_URL = "https://api.enmsgo.com"
+//const API_BASE_URL = "http://localhost:3001/api"
+//const API_BASE_URL = "http://103.91.67.38:5000"
+
 // Helper function for handling API responses
-const handleResponse = async (response: Response) => {
+const handleResponse = async (response) => {
   const data = await response.json()
 
   if (!response.ok) {
@@ -16,9 +19,45 @@ const handleResponse = async (response: Response) => {
   return data
 }
 
+// Helper function to get auth header
+const authHeader = () => {
+  const token = localStorage.getItem("token")
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
+// Helper function for making API requests with error handling
+const apiRequest = async (endpoint, method = "GET", body = null) => {
+  try {
+    const url = `${API_BASE_URL}${endpoint}`
+    const headers = {
+      ...authHeader(),
+      "Content-Type": "application/json",
+    }
+
+    const options = {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : null,
+    }
+
+    const response = await fetch(url, options)
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      console.error(`API request failed for ${endpoint}:`, errorData)
+      throw new Error(errorData.message || `API request failed with status ${response.status}`)
+    }
+
+    return await response.json()
+  } catch (error) {
+    console.error(`Error in apiRequest for ${endpoint}:`, error)
+    throw error
+  }
+}
+
 // Authentication API
 export const authAPI = {
-  async login(email: string, password: string) {
+  login: async (email, password) => {
     try {
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: "POST",
@@ -50,7 +89,7 @@ export const authAPI = {
     }
   },
 
-  register: async (userData: any) => {
+  register: async (userData) => {
     const response = await fetch(`${API_BASE_URL}/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -76,7 +115,7 @@ export const authAPI = {
   },
 
   // Validate password reset token (for email-based resets)
-  validatePasswordToken: async (token: string) => {
+  validatePasswordToken: async (token) => {
     const response = await fetch(`${API_BASE_URL}/auth/validate-token`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -86,7 +125,7 @@ export const authAPI = {
   },
 
   // Reset password with token (for email-based resets)
-  resetPassword: async (token: string, newPassword: string) => {
+  resetPassword: async (token, newPassword) => {
     const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -96,7 +135,7 @@ export const authAPI = {
   },
 
   // Change password for first-time login
-  changePasswordFirstTime: async (userId: string, currentPassword: string, newPassword: string, token: string) => {
+  changePasswordFirstTime: async (userId, currentPassword, newPassword, token) => {
     const response = await fetch(`${API_BASE_URL}/auth/change-password-first-time`, {
       method: "POST",
       headers: {
@@ -113,7 +152,7 @@ export const authAPI = {
   },
 
   // Request password reset (for forgotten passwords)
-  requestPasswordReset: async (email: string) => {
+  requestPasswordReset: async (email) => {
     const response = await fetch(`${API_BASE_URL}/auth/request-reset`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -123,25 +162,15 @@ export const authAPI = {
   },
 }
 
-// Helper function to get auth header
-const authHeader = () => {
-  const token = authAPI.getToken()
-  if (!token) {
-    console.warn("No auth token found")
-    return {}
-  }
-  return { Authorization: `Bearer ${token}` }
-}
-
 // Smart Meters API
 export const smartMetersAPI = {
   getAll: async (params = {}) => {
     try {
       const queryString = new URLSearchParams(params).toString()
       const response = await fetch(`${API_BASE_URL}/devices/smart-meters?${queryString}`, {
-      method: "GET",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-    })
+        method: "GET",
+        headers: { ...authHeader(), "Content-Type": "application/json" },
+      })
 
       if (!response.ok) {
         const errorData = await response.json()
@@ -158,10 +187,10 @@ export const smartMetersAPI = {
 
   getById: async (id) => {
     try {
-    const response = await fetch(`${API_BASE_URL}/devices/smart-meters/${id}`, {
-      method: "GET",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-    })
+      const response = await fetch(`${API_BASE_URL}/devices/smart-meters/${id}`, {
+        method: "GET",
+        headers: { ...authHeader(), "Content-Type": "application/json" },
+      })
 
       if (!response.ok) {
         const errorData = await response.json()
@@ -178,11 +207,11 @@ export const smartMetersAPI = {
 
   create: async (data) => {
     try {
-    const response = await fetch(`${API_BASE_URL}/devices/smart-meters`, {
-      method: "POST",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
+      const response = await fetch(`${API_BASE_URL}/devices/smart-meters`, {
+        method: "POST",
+        headers: { ...authHeader(), "Content-Type": "application/json" },
         body: JSON.stringify(data),
-    })
+      })
 
       if (!response.ok) {
         const errorData = await response.json()
@@ -199,11 +228,11 @@ export const smartMetersAPI = {
 
   update: async (id, data) => {
     try {
-    const response = await fetch(`${API_BASE_URL}/devices/smart-meters/${id}`, {
-      method: "PUT",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
+      const response = await fetch(`${API_BASE_URL}/devices/smart-meters/${id}`, {
+        method: "PUT",
+        headers: { ...authHeader(), "Content-Type": "application/json" },
         body: JSON.stringify(data),
-    })
+      })
 
       if (!response.ok) {
         const errorData = await response.json()
@@ -220,10 +249,10 @@ export const smartMetersAPI = {
 
   delete: async (id) => {
     try {
-    const response = await fetch(`${API_BASE_URL}/devices/smart-meters/${id}`, {
-      method: "DELETE",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-    })
+      const response = await fetch(`${API_BASE_URL}/devices/smart-meters/${id}`, {
+        method: "DELETE",
+        headers: { ...authHeader(), "Content-Type": "application/json" },
+      })
 
       if (!response.ok) {
         const errorData = await response.json()
@@ -245,9 +274,9 @@ export const edgeGatewaysAPI = {
     try {
       const queryString = new URLSearchParams(params).toString()
       const response = await fetch(`${API_BASE_URL}/devices/edge-gateways?${queryString}`, {
-      method: "GET",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-    })
+        method: "GET",
+        headers: { ...authHeader(), "Content-Type": "application/json" },
+      })
 
       if (!response.ok) {
         const errorData = await response.json()
@@ -264,10 +293,10 @@ export const edgeGatewaysAPI = {
 
   getById: async (id) => {
     try {
-    const response = await fetch(`${API_BASE_URL}/devices/edge-gateways/${id}`, {
-      method: "GET",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-    })
+      const response = await fetch(`${API_BASE_URL}/devices/edge-gateways/${id}`, {
+        method: "GET",
+        headers: { ...authHeader(), "Content-Type": "application/json" },
+      })
 
       if (!response.ok) {
         const errorData = await response.json()
@@ -284,11 +313,11 @@ export const edgeGatewaysAPI = {
 
   create: async (data) => {
     try {
-    const response = await fetch(`${API_BASE_URL}/devices/edge-gateways`, {
-      method: "POST",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
+      const response = await fetch(`${API_BASE_URL}/devices/edge-gateways`, {
+        method: "POST",
+        headers: { ...authHeader(), "Content-Type": "application/json" },
         body: JSON.stringify(data),
-    })
+      })
 
       if (!response.ok) {
         const errorData = await response.json()
@@ -305,11 +334,11 @@ export const edgeGatewaysAPI = {
 
   update: async (id, data) => {
     try {
-    const response = await fetch(`${API_BASE_URL}/devices/edge-gateways/${id}`, {
-      method: "PUT",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
+      const response = await fetch(`${API_BASE_URL}/devices/edge-gateways/${id}`, {
+        method: "PUT",
+        headers: { ...authHeader(), "Content-Type": "application/json" },
         body: JSON.stringify(data),
-    })
+      })
 
       if (!response.ok) {
         const errorData = await response.json()
@@ -326,10 +355,10 @@ export const edgeGatewaysAPI = {
 
   delete: async (id) => {
     try {
-    const response = await fetch(`${API_BASE_URL}/devices/edge-gateways/${id}`, {
-      method: "DELETE",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-    })
+      const response = await fetch(`${API_BASE_URL}/devices/edge-gateways/${id}`, {
+        method: "DELETE",
+        headers: { ...authHeader(), "Content-Type": "application/json" },
+      })
 
       if (!response.ok) {
         const errorData = await response.json()

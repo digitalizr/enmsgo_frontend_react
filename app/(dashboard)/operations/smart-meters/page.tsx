@@ -26,7 +26,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
-import { smartMeterApi, deviceModelApi } from "@/lib/api"
+import { smartMetersAPI, deviceModelsAPI } from "@/lib/api"
 
 export default function SmartMetersPage() {
   const { toast } = useToast()
@@ -64,7 +64,7 @@ export default function SmartMetersPage() {
       if (manufacturerFilter !== "all") params.manufacturer = manufacturerFilter
 
       // Call the API
-      const response = await smartMeterApi.getAll(params)
+      const response = await smartMetersAPI.getAll(params)
       setSmartMeters(response.data)
     } catch (error) {
       console.error("Error fetching smart meters:", error)
@@ -82,7 +82,7 @@ export default function SmartMetersPage() {
   const fetchDeviceModels = async () => {
     try {
       // Call the API to get device models for smart meters
-      const response = await deviceModelApi.getAll({ device_type: "smart_meter" })
+      const response = await deviceModelsAPI.getAll({ device_type: "smart_meter" })
       const models = response.data
       setDeviceModels(models)
 
@@ -166,7 +166,7 @@ export default function SmartMetersPage() {
       }
 
       // Call the API to create a new smart meter
-      await smartMeterApi.create(formData)
+      await smartMetersAPI.create(formData)
 
       // Close dialog and reset form
       setIsAddDialogOpen(false)
@@ -210,7 +210,7 @@ export default function SmartMetersPage() {
       }
 
       // Call the API to update the smart meter
-      await smartMeterApi.update(selectedMeter.id, formData)
+      await smartMetersAPI.update(selectedMeter.id, formData)
 
       // Close dialog and reset selection
       setIsEditDialogOpen(false)
@@ -237,7 +237,7 @@ export default function SmartMetersPage() {
   const handleDeleteMeter = async () => {
     try {
       // Call the API to delete the smart meter
-      await smartMeterApi.delete(selectedMeter.id)
+      await smartMetersAPI.delete(selectedMeter.id)
 
       // Close dialog and reset selection
       setIsDeleteDialogOpen(false)
@@ -658,4 +658,3 @@ export default function SmartMetersPage() {
     </div>
   )
 }
-

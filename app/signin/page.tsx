@@ -11,12 +11,14 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuth } from "@/contexts/auth-context"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { authApi } from "@/lib/api" // Import the authApi service
+import { authAPI } from "@/lib/api" // Import the authAPI service
 
-// Define admin emails for temporary solution
-const ADMIN_EMAILS = ["admin@admin.com"]
-const OPERATOR_EMAILS = ["operator@operator.com"]
-const TECHNICIAN_EMAILS = ["technician@technician.com"]
+// Define role ID constants
+const ROLE_IDS = {
+  ADMIN: "615b2efa-ea1b-44b5-8753-04dc5cf29b84",
+  CUSTOMER: "526663e2-22a7-4c5a-8e47-299ca2382ac7",
+  // Add other role IDs as needed
+}
 
 export default function SignInPage() {
   const [email, setEmail] = useState("")
@@ -45,7 +47,7 @@ export default function SignInPage() {
 
     try {
       // Connect to the backend API for authentication
-      const response = await authApi.login(email, password)
+      const response = await authAPI.login(email, password)
 
       // Check if the user needs to change their password (first-time login)
       if (response.user.requirePasswordChange) {
@@ -64,12 +66,12 @@ export default function SignInPage() {
 
         // Log the response for debugging
         console.log("Login response:", response)
+        console.log("User role_id:", response.user.role_id)
 
-        // Determine if the user is operations staff based on email (temporary solution)
-        const isOpStaff =
-          ADMIN_EMAILS.includes(email) || OPERATOR_EMAILS.includes(email) || TECHNICIAN_EMAILS.includes(email)
+        // Determine if the user is operations staff based on role_id
+        const isOpStaff = response.user.role_id !== ROLE_IDS.CUSTOMER
 
-        console.log("Is operations staff (based on email):", isOpStaff)
+        console.log("Is operations staff:", isOpStaff)
 
         // Login the user using the auth context
         await login(response.user)
@@ -181,4 +183,3 @@ export default function SignInPage() {
     </div>
   )
 }
-
