@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuth } from "@/contexts/auth-context"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { authApi } from "@/lib/api" // Import the authApi service
+import { authAPI } from "@/services/api" // Import the authApi service
 
 // Define role ID constants
 const ROLE_IDS = {
