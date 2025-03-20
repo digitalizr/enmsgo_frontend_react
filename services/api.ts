@@ -2,7 +2,8 @@
 // This file serves as the central point for all API calls to the backend
 
 // Base API URL - should be set from environment variables in production
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL 
+//const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL 
+const API_BASE_URL = "https://api.enmsgo.com"
 
 // Helper function for handling API responses
 const handleResponse = async (response) => {
