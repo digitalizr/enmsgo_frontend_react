@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/pagination"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AlertCircle, Plus, Search, Trash2, Edit, RotateCw, Network, Cpu, Terminal } from "lucide-react"
-import { edgeGatewaysAPI, deviceModelsAPI } from "@/services/api"
+import { edgeGatewaysAPI, deviceModelsAPI } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 
 export default function EdgeGatewaysPage() {

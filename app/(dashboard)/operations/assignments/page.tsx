@@ -34,7 +34,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useToast } from "@/hooks/use-toast"
-import { assignmentApi, userApi, edgeGatewayApi, smartMeterApi } from "@/services/api"
+import { assignmentApi, userApi, edgeGatewayApi, smartMeterApi } from "@/lib/api"
 
 export default function AssignmentsPage() {
   const { toast } = useToast()

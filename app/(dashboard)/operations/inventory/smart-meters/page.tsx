@@ -26,7 +26,7 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination"
 import { AlertCircle, Plus, Search, Trash2, Edit, RotateCw } from "lucide-react"
-import { smartMetersAPI, deviceModelsAPI } from "@/services/api"
+import { smartMetersAPI, deviceModelsAPI } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 
 export default function SmartMetersPage() {

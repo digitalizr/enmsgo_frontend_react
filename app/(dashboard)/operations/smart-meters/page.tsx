@@ -26,7 +26,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
-import { smartMeterApi, deviceModelApi } from "@/services/api"
+import { smartMeterApi, deviceModelApi } from "@/lib/api"
 
 export default function SmartMetersPage() {
   const { toast } = useToast()

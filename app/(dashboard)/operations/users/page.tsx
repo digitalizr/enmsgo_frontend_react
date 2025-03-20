@@ -42,7 +42,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
-import { userAPI, companyAPI } from "@/services/api"
+import { userAPI, companyAPI } from "@/lib/api"
 
 export default function UsersPage() {
   const { toast } = useToast()
