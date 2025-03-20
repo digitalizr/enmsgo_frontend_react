@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { createContext, useContext, useState, useEffect } from "react"
-import { authApi } from "@/lib/api" // Import the authApi service
+import { authAPI } from "@/service/api" // Import the authApi service
 
 // Define role ID constants
 const ROLE_IDS = {
@@ -125,7 +125,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     try {
       // Call the API logout method
-      await authApi.logout()
+      await authAPI.logout()
 
       // Clear user state
       setUser(null)

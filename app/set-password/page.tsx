@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import { authApi } from "@/lib/api"
+import { authAPI } from "@/services/api"
 import { useToast } from "@/hooks/use-toast"
 
 export default function SetPasswordPage() {
@@ -58,7 +58,7 @@ export default function SetPasswordPage() {
   const validateToken = async (tokenValue: string) => {
     try {
       setLoading(true)
-      const response = await authApi.validatePasswordToken(tokenValue)
+      const response = await authAPI.validatePasswordToken(tokenValue)
       setTokenValid(response.valid)
       setTokenChecked(true)
     } catch (error) {
@@ -171,7 +171,7 @@ export default function SetPasswordPage() {
         })
       } else {
         // Password reset via email token
-        await authApi.resetPassword(token!, newPassword)
+        await authAPI.resetPassword(token!, newPassword)
 
         toast({
           title: "Password reset successfully",
