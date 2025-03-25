@@ -12,11 +12,13 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuth } from "@/contexts/auth-context"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { authAPI } from "@/services/api"
 
 export default function SignUpPage() {
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [phone, setPhone] = useState("")
+  const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
@@ -40,14 +42,24 @@ export default function SignUpPage() {
     setIsLoading(true)
 
     try {
-      // Simulate API call to register interest
-      await new Promise((resolve) => setTimeout(resolve, 1500))
-      setIsSuccess(true)
+      // Split name into first and last name
+      const nameParts = name.trim().split(" ")
+      const firstName = nameParts[0]
+      const lastName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : ""
 
-      // In a real app, you would call an API to register the user's interest
-      // The actual account creation would happen after the onboarding process
-    } catch (err) {
-      setError("An error occurred during sign up")
+      // Call the registration API
+      await authAPI.register({
+        firstName,
+        lastName,
+        email,
+        password,
+        role: "customer", // Default role for signup
+      })
+
+      setIsSuccess(true)
+    } catch (err: any) {
+      console.error("Registration error:", err)
+      setError(err?.message || "An error occurred during sign up")
     } finally {
       setIsLoading(false)
     }
@@ -196,6 +208,17 @@ export default function SignUpPage() {
                     </div>
                   </div>
                   <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder="Create a password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
                     <Label htmlFor="phone">Phone Number (Optional)</Label>
                     <div className="relative">
                       <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -235,3 +258,4 @@ export default function SignUpPage() {
     </div>
   )
 }
+

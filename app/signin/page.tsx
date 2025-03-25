@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuth } from "@/contexts/auth-context"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { authAPI } from "@/lib/api" // Import the authAPI service
+import { authAPI } from "@/services/api"
 
 // Define role ID constants
 const ROLE_IDS = {
@@ -183,3 +183,4 @@ export default function SignInPage() {
     </div>
   )
 }
+

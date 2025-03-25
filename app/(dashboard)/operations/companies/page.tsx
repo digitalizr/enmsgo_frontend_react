@@ -47,7 +47,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
-import { companiesAPI } from "@/lib/api"
+import { companiesAPI } from "@/services/api"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -1734,3 +1734,4 @@ export default function CompaniesPage() {
     </div>
   )
 }
+

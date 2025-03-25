@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/pagination"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AlertCircle, Plus, Search, Trash2, Edit, RotateCw, Network, Cpu, Terminal } from "lucide-react"
-import { edgeGatewaysAPI, deviceModelsAPI } from "@/lib/api"
+import { edgeGatewaysAPI, deviceModelsAPI, manufacturersAPI } from "@/services/api"
 import { useToast } from "@/hooks/use-toast"
 
 export default function EdgeGatewaysPage() {
@@ -113,6 +113,21 @@ export default function EdgeGatewaysPage() {
     }
   }
 
+  // Fetch manufacturers
+  const fetchManufacturers = async () => {
+    try {
+      const response = await manufacturersAPI.getAll()
+      setManufacturers(response.data || [])
+    } catch (err) {
+      console.error("Error fetching manufacturers:", err)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to fetch manufacturers",
+      })
+    }
+  }
+
   // Fetch device models
   const fetchDeviceModels = async () => {
     try {
@@ -122,10 +137,6 @@ export default function EdgeGatewaysPage() {
 
       const models = response.data
       setDeviceModels(models)
-
-      // Extract unique manufacturers
-      const uniqueManufacturers = [...new Set(models.map((model) => model.manufacturer))]
-      setManufacturers(uniqueManufacturers)
 
       // Group models by manufacturer
       const modelsByMfr = {}
@@ -215,6 +226,7 @@ export default function EdgeGatewaysPage() {
   // Initial fetch
   useEffect(() => {
     fetchEdgeGateways()
+    fetchManufacturers()
     fetchDeviceModels()
   }, [pagination.offset, pagination.limit, filters.status])
 
@@ -749,8 +761,8 @@ export default function EdgeGatewaysPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {manufacturers.map((manufacturer) => (
-                    <SelectItem key={manufacturer} value={manufacturer}>
-                      {manufacturer}
+                    <SelectItem key={manufacturer.id} value={manufacturer.id}>
+                      {manufacturer.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -858,8 +870,8 @@ export default function EdgeGatewaysPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {manufacturers.map((manufacturer) => (
-                    <SelectItem key={manufacturer} value={manufacturer}>
-                      {manufacturer}
+                    <SelectItem key={manufacturer.id} value={manufacturer.id}>
+                      {manufacturer.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1387,3 +1399,4 @@ export default function EdgeGatewaysPage() {
     </div>
   )
 }
+

@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import { authAPI } from "@/lib/api"
+import { authAPI } from "@/services/api"
 import { useToast } from "@/hooks/use-toast"
 
 export default function SetPasswordPage() {
@@ -386,3 +386,4 @@ export default function SetPasswordPage() {
     </div>
   )
 }
+
