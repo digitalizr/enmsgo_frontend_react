@@ -56,7 +56,7 @@ export default function AssignmentsPage() {
   const fetchUsers = async () => {
     try {
       const response = await usersAPI.getAll()
-      setUsers(response.data)
+      setUsers(response.data || [])
     } catch (error) {
       console.error("Error fetching users:", error)
       toast({
@@ -71,7 +71,7 @@ export default function AssignmentsPage() {
   const fetchAvailableEdgeGateways = async () => {
     try {
       const response = await edgeGatewaysAPI.getAll({ status: "available" })
-      setAvailableEdgeGateways(response.data)
+      setAvailableEdgeGateways(response.data || [])
     } catch (error) {
       console.error("Error fetching available edge gateways:", error)
       toast({
@@ -86,7 +86,7 @@ export default function AssignmentsPage() {
   const fetchAvailableSmartMeters = async () => {
     try {
       const response = await smartMetersAPI.getAll({ status: "available" })
-      setAvailableSmartMeters(response.data)
+      setAvailableSmartMeters(response.data || [])
     } catch (error) {
       console.error("Error fetching available smart meters:", error)
       toast({
@@ -102,7 +102,7 @@ export default function AssignmentsPage() {
     try {
       setLoading(true)
       const response = await assignmentsAPI.getAll()
-      setAssignments(response.data)
+      setAssignments(response.data || [])
     } catch (error) {
       console.error("Error fetching assignments:", error)
       toast({
