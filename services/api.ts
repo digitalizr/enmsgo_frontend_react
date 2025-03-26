@@ -2,6 +2,7 @@
 // This file serves as the central point for all API calls to the backend
 
 // Base API URL - should be set from environment variables in production
+//const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"
 const API_BASE_URL = "https://api.enmsgo.com/api"
 
 // Helper function for handling API responses
@@ -10,6 +11,7 @@ const handleResponse = async (response) => {
 
   if (!response.ok) {
     const error = (data && data.message) || response.statusText
+    console.error("API Error Response:", data) // Debugging log
     return Promise.reject(error)
   }
 
@@ -37,17 +39,19 @@ const apiRequest = async (endpoint, method = "GET", body = null) => {
       body: body ? JSON.stringify(body) : null,
     }
 
+    console.log(`Making API request to ${url} with options:`, options) // Debugging log
+
     const response = await fetch(url, options)
 
     if (!response.ok) {
       const errorData = await response.json()
-      console.error(`API request failed for ${endpoint}:`, errorData)
+      console.error(`API request failed for ${endpoint}:`, errorData) // Debugging log
       throw new Error(errorData.message || `API request failed with status ${response.status}`)
     }
 
     return await response.json()
   } catch (error) {
-    console.error(`Error in apiRequest for ${endpoint}:`, error)
+    console.error(`Error in apiRequest for ${endpoint}:`, error) // Debugging log
     throw error
   }
 }
@@ -269,22 +273,31 @@ export const smartMetersAPI = {
 export const edgeGatewaysAPI = {
   getAll: async (params = {}) => {
     try {
-      const queryString = new URLSearchParams(params).toString()
+      // Filter out undefined or empty parameters
+      const filteredParams = Object.fromEntries(
+        Object.entries(params).filter(([_, value]) => value !== undefined && value !== "")
+      );
+
+      const queryString = new URLSearchParams(filteredParams).toString();
       const response = await fetch(`${API_BASE_URL}/devices/edge-gateways?${queryString}`, {
         method: "GET",
         headers: { ...authHeader(), "Content-Type": "application/json" },
-      })
+      });
+
+      console.log("Fetching edge gateways with params:", filteredParams); // Debugging log
 
       if (!response.ok) {
-        const errorData = await response.json()
-        console.error("Server error response:", errorData)
-        throw new Error(errorData.message || "Failed to fetch edge gateways")
+        const errorData = await response.json();
+        console.error("Server error response:", errorData); // Debugging log
+        throw new Error(errorData.message || "Failed to fetch edge gateways");
       }
 
-      return await response.json()
+      const data = await response.json();
+      console.log("Edge Gateways API Response:", data); // Debugging log
+      return data;
     } catch (error) {
-      console.error("Error in edgeGatewaysAPI.getAll:", error)
-      throw error
+      console.error("Error in edgeGatewaysAPI.getAll:", error); // Debugging log
+      throw error;
     }
   },
 
@@ -295,21 +308,27 @@ export const edgeGatewaysAPI = {
         headers: { ...authHeader(), "Content-Type": "application/json" },
       })
 
+      console.log(`Fetching edge gateway with ID: ${id}`) // Debugging log
+
       if (!response.ok) {
         const errorData = await response.json()
-        console.error("Server error response:", errorData)
+        console.error("Server error response:", errorData) // Debugging log
         throw new Error(errorData.message || "Failed to fetch edge gateway")
       }
 
-      return await response.json()
+      const data = await response.json()
+      console.log("Edge Gateway API Response:", data) // Debugging log
+      return data
     } catch (error) {
-      console.error("Error in edgeGatewaysAPI.getById:", error)
+      console.error("Error in edgeGatewaysAPI.getById:", error) // Debugging log
       throw error
     }
   },
 
   create: async (data) => {
     try {
+      console.log("Creating edge gateway with data:", data) // Debugging log
+
       const response = await fetch(`${API_BASE_URL}/devices/edge-gateways`, {
         method: "POST",
         headers: { ...authHeader(), "Content-Type": "application/json" },
@@ -318,19 +337,23 @@ export const edgeGatewaysAPI = {
 
       if (!response.ok) {
         const errorData = await response.json()
-        console.error("Server error response:", errorData)
+        console.error("Server error response:", errorData) // Debugging log
         throw new Error(errorData.message || "Failed to create edge gateway")
       }
 
-      return await response.json()
+      const responseData = await response.json()
+      console.log("Edge Gateway Created:", responseData) // Debugging log
+      return responseData
     } catch (error) {
-      console.error("Error in edgeGatewaysAPI.create:", error)
+      console.error("Error in edgeGatewaysAPI.create:", error) // Debugging log
       throw error
     }
   },
 
   update: async (id, data) => {
     try {
+      console.log(`Updating edge gateway with ID: ${id} and data:`, data) // Debugging log
+
       const response = await fetch(`${API_BASE_URL}/devices/edge-gateways/${id}`, {
         method: "PUT",
         headers: { ...authHeader(), "Content-Type": "application/json" },
@@ -339,19 +362,23 @@ export const edgeGatewaysAPI = {
 
       if (!response.ok) {
         const errorData = await response.json()
-        console.error("Server error response:", errorData)
+        console.error("Server error response:", errorData) // Debugging log
         throw new Error(errorData.message || "Failed to update edge gateway")
       }
 
-      return await response.json()
+      const responseData = await response.json()
+      console.log("Edge Gateway Updated:", responseData) // Debugging log
+      return responseData
     } catch (error) {
-      console.error("Error in edgeGatewaysAPI.update:", error)
+      console.error("Error in edgeGatewaysAPI.update:", error) // Debugging log
       throw error
     }
   },
 
   delete: async (id) => {
     try {
+      console.log(`Deleting edge gateway with ID: ${id}`) // Debugging log
+
       const response = await fetch(`${API_BASE_URL}/devices/edge-gateways/${id}`, {
         method: "DELETE",
         headers: { ...authHeader(), "Content-Type": "application/json" },
@@ -359,13 +386,14 @@ export const edgeGatewaysAPI = {
 
       if (!response.ok) {
         const errorData = await response.json()
-        console.error("Server error response:", errorData)
+        console.error("Server error response:", errorData) // Debugging log
         throw new Error(errorData.message || "Failed to delete edge gateway")
       }
 
-      return await response.json()
+      console.log("Edge Gateway Deleted Successfully") // Debugging log
+      return { success: true }
     } catch (error) {
-      console.error("Error in edgeGatewaysAPI.delete:", error)
+      console.error("Error in edgeGatewaysAPI.delete:", error) // Debugging log
       throw error
     }
   },
@@ -1261,4 +1289,46 @@ export const billingAPI = {
     return handleResponse(response)
   },
 }
+
+// Manufacturers API
+export const manufacturersAPI = {
+  getAll: async () => {
+    const response = await fetch(`${API_BASE_URL}/manufacturers`, {
+      method: "GET",
+      headers: { ...authHeader(), "Content-Type": "application/json" },
+    })
+    return handleResponse(response)
+  },
+  getById: async (id) => {
+    const response = await fetch(`${API_BASE_URL}/manufacturers/${id}`, {
+      method: "GET",
+      headers: { ...authHeader(), "Content-Type": "application/json" },
+    })
+    return handleResponse(response)
+  },
+  create: async (data) => {
+    const response = await fetch(`${API_BASE_URL}/manufacturers`, {
+      method: "POST",
+      headers: { ...authHeader(), "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    })
+    return handleResponse(response)
+  },
+  update: async (id, data) => {
+    const response = await fetch(`${API_BASE_URL}/manufacturers/${id}`, {
+      method: "PUT",
+      headers: { ...authHeader(), "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    })
+    return handleResponse(response)
+  },
+  delete: async (id) => {
+    const response = await fetch(`${API_BASE_URL}/manufacturers/${id}`, {
+      method: "DELETE",
+      headers: { ...authHeader(), "Content-Type": "application/json" },
+    })
+    return handleResponse(response)
+  },
+}
+
 
