@@ -5,6 +5,7 @@
 const API_BASE_URL = "https://api.enmsgo.com/api"
 //const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"
 
+
 // Helper function for handling API responses
 const handleResponse = async (response) => {
   const data = await response.json()
@@ -618,14 +619,24 @@ export const edgeGatewaysAPI = {
 export const companiesAPI = {
   getAll: async (params = {}) => {
     try {
+      console.log("Fetching all companies")
       const queryString = new URLSearchParams(params).toString()
       const response = await fetch(`${API_BASE_URL}/companies?${queryString}`, {
         method: "GET",
         headers: { ...authHeader(), "Content-Type": "application/json" },
       })
 
-      const data = await handleResponse(response)
-      return data // Return the data directly, not wrapped in another object
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error("Server error response:", errorData)
+        throw new Error(errorData.message || "Failed to fetch companies")
+      }
+
+      const data = await response.json()
+      console.log("Raw companies API response:", data)
+
+      // Return directly if it's an array, otherwise extract data property
+      return data
     } catch (error) {
       console.error("Error in companiesAPI.getAll:", error)
       throw error
@@ -741,13 +752,32 @@ export const companiesAPI = {
 
   getFacilities: async (companyId) => {
     try {
+      console.log(`Fetching facilities for company ID: ${companyId}`)
       const response = await fetch(`${API_BASE_URL}/companies/${companyId}/facilities`, {
         method: "GET",
         headers: { ...authHeader(), "Content-Type": "application/json" },
       })
-      return handleResponse(response)
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error("Server error response:", errorData)
+        throw new Error(errorData.message || "Failed to fetch facilities")
+      }
+
+      const data = await response.json()
+      console.log("Raw facilities API response:", data)
+
+      // Normalize the response format
+      if (Array.isArray(data)) {
+        return { data }
+      } else if (data && data.data) {
+        return data
+      } else {
+        console.error("Unexpected response format:", data)
+        return { data: [] }
+      }
     } catch (error) {
-      console.error("Error fetching facilities:", error)
+      console.error("Error in companiesAPI.getFacilities:", error)
       throw error
     }
   },
@@ -1040,13 +1070,32 @@ export const companiesAPI = {
 
   getDepartments: async (facilityId) => {
     try {
+      console.log(`Fetching departments for facility ID: ${facilityId}`)
       const response = await fetch(`${API_BASE_URL}/facilities/${facilityId}/departments`, {
         method: "GET",
         headers: { ...authHeader(), "Content-Type": "application/json" },
       })
-      return handleResponse(response)
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error("Server error response:", errorData)
+        throw new Error(errorData.message || "Failed to fetch departments")
+      }
+
+      const data = await response.json()
+      console.log("Raw departments API response:", data)
+
+      // Normalize the response format
+      if (Array.isArray(data)) {
+        return { data }
+      } else if (data && data.data) {
+        return data
+      } else {
+        console.error("Unexpected response format:", data)
+        return { data: [] }
+      }
     } catch (error) {
-      console.error("Error fetching departments:", error)
+      console.error("Error in companiesAPI.getDepartments:", error)
       throw error
     }
   },

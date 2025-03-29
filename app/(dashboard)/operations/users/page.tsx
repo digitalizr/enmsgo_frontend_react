@@ -98,11 +98,27 @@ export default function UsersPage() {
     }
   }
 
+  // First, let's add some console logs to debug the API responses
+  // Update the fetchCompanies function to better handle the API response
+
   // Fetch companies
   const fetchCompanies = async () => {
     try {
       const response = await companiesAPI.getAll()
-      setCompanies(response.data || [])
+      console.log("Companies API response:", response) // Debug log
+
+      // Handle different response formats
+      let companiesData = []
+      if (Array.isArray(response)) {
+        companiesData = response
+      } else if (response && Array.isArray(response.data)) {
+        companiesData = response.data
+      } else if (response) {
+        companiesData = [response]
+      }
+
+      console.log("Processed companies data:", companiesData) // Debug log
+      setCompanies(companiesData || [])
     } catch (error) {
       console.error("Error fetching companies:", error)
       toast({
@@ -142,13 +158,28 @@ export default function UsersPage() {
     }
   }, [isAddDialogOpen])
 
+  // Update the useEffect for facilities to better handle API responses
   // Update available facilities when company changes
   useEffect(() => {
     if (selectedCompanyId) {
       const fetchFacilities = async () => {
         try {
+          console.log(`Fetching facilities for company ID: ${selectedCompanyId}`) // Debug log
           const response = await companiesAPI.getFacilities(selectedCompanyId)
-          setAvailableFacilities(response.data || [])
+          console.log("Facilities API response:", response) // Debug log
+
+          // Handle different response formats
+          let facilitiesData = []
+          if (Array.isArray(response)) {
+            facilitiesData = response
+          } else if (response && Array.isArray(response.data)) {
+            facilitiesData = response.data
+          } else if (response) {
+            facilitiesData = [response]
+          }
+
+          console.log("Processed facilities data:", facilitiesData) // Debug log
+          setAvailableFacilities(facilitiesData || [])
           setSelectedFacilityId("")
           setAvailableDepartments([])
 
@@ -170,15 +201,30 @@ export default function UsersPage() {
       setSelectedFacilityId("")
       setAvailableDepartments([])
     }
-  }, [selectedCompanyId])
+  }, [selectedCompanyId, newUser])
 
+  // Update the useEffect for departments to better handle API responses
   // Update available departments when facility changes
   useEffect(() => {
     if (selectedFacilityId && selectedCompanyId) {
       const fetchDepartments = async () => {
         try {
+          console.log(`Fetching departments for facility ID: ${selectedFacilityId}`) // Debug log
           const response = await companiesAPI.getDepartments(selectedFacilityId)
-          setAvailableDepartments(response.data || [])
+          console.log("Departments API response:", response) // Debug log
+
+          // Handle different response formats
+          let departmentsData = []
+          if (Array.isArray(response)) {
+            departmentsData = response
+          } else if (response && Array.isArray(response.data)) {
+            departmentsData = response.data
+          } else if (response) {
+            departmentsData = [response]
+          }
+
+          console.log("Processed departments data:", departmentsData) // Debug log
+          setAvailableDepartments(departmentsData || [])
 
           // Update new user form
           setNewUser({
@@ -195,7 +241,7 @@ export default function UsersPage() {
     } else {
       setAvailableDepartments([])
     }
-  }, [selectedFacilityId, selectedCompanyId])
+  }, [selectedFacilityId, selectedCompanyId, newUser])
 
   // Generate a random password
   const generateRandomPassword = () => {
@@ -373,21 +419,29 @@ export default function UsersPage() {
     setIsManualResetDialogOpen(true)
   }
 
+  // Update the getRoleBadge function to handle role names from the database
   const getRoleBadge = (role) => {
-    switch (role) {
+    switch (role?.toLowerCase()) {
+      case "admin":
+        return <Badge className="bg-red-500">Admin</Badge>
       case "operator":
         return <Badge className="bg-green-500">Operator</Badge>
       case "manager":
         return <Badge className="bg-blue-500">Manager</Badge>
       case "customer":
         return <Badge className="bg-purple-500">Customer</Badge>
+      case "technician":
+        return <Badge className="bg-orange-500">Technician</Badge>
       default:
-        return <Badge variant="outline">Unknown</Badge>
+        return <Badge variant="outline">{role || "Unknown"}</Badge>
     }
   }
 
+  // Update the getStatusBadge function to handle the status field correctly
   const getStatusBadge = (isActive) => {
-    return isActive ? <Badge className="bg-green-500">Active</Badge> : <Badge variant="secondary">Inactive</Badge>
+    // Handle both boolean and string status values
+    const active = typeof isActive === "boolean" ? isActive : isActive === "active"
+    return active ? <Badge className="bg-green-500">Active</Badge> : <Badge variant="secondary">Inactive</Badge>
   }
 
   return (
