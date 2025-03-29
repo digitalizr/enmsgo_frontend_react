@@ -1,18 +1,11 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { CircuitBoard, Plus, Search, MoreHorizontal, CheckCircle, XCircle, Pencil, Trash2, Loader2 } from "lucide-react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import {
   Dialog,
   DialogContent,
@@ -20,636 +13,674 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { useToast } from "@/hooks/use-toast"
-import { smartMetersAPI, deviceModelsAPI } from "@/services/api"
+import { Card, CardContent } from "@/components/ui/card"
+import { smartMetersAPI, manufacturersAPI } from "@/services/api"
+import { PlusCircle, Search, RefreshCw, Edit, Trash2 } from "lucide-react"
+import { API_BASE_URL, authHeader } from "@/services/apiConfig"
 
 export default function SmartMetersPage() {
-  const { toast } = useToast()
+  const router = useRouter()
   const [smartMeters, setSmartMeters] = useState([])
-  const [deviceModels, setDeviceModels] = useState([])
-  const [manufacturers, setManufacturers] = useState([])
-  const [modelsByManufacturer, setModelsByManufacturer] = useState({})
   const [loading, setLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState("")
+  const [error, setError] = useState(null)
+  const [manufacturers, setManufacturers] = useState([])
+  const [models, setModels] = useState([])
+  const [selectedManufacturer, setSelectedManufacturer] = useState("all")
+  const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
-  const [manufacturerFilter, setManufacturerFilter] = useState("all")
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [selectedMeter, setSelectedMeter] = useState(null)
-
-  // Form state for adding/editing a smart meter
+  const [currentSmartMeter, setCurrentSmartMeter] = useState(null)
   const [formData, setFormData] = useState({
     serial_number: "",
-    manufacturer: "",
+    manufacturer_id: "",
     model_id: "",
-    mac_address: "",
     firmware_version: "",
-    notes: "",
+    communication_protocol: "",
+    status: "available",
   })
 
-  // Fetch smart meters from the API
+  // Fetch smart meters
   const fetchSmartMeters = async () => {
     try {
       setLoading(true)
-      // Prepare filter parameters
       const params = {}
-      if (searchTerm) params.search = searchTerm
-      if (statusFilter !== "all") params.status = statusFilter
-      if (manufacturerFilter !== "all") params.manufacturer = manufacturerFilter
 
-      // Call the API
+      // Only add parameters if they have valid values
+      if (statusFilter !== "all") params.status = statusFilter
+      if (selectedManufacturer !== "all") params.manufacturer = selectedManufacturer
+      if (searchQuery) params.search = searchQuery
+
+      console.log("Fetching smart meters with params:", params)
       const response = await smartMetersAPI.getAll(params)
-      setSmartMeters(response.data)
-    } catch (error) {
-      console.error("Error fetching smart meters:", error)
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to fetch smart meters. Please try again.",
-      })
+      console.log("Smart meters response:", response)
+
+      setSmartMeters(response.data || [])
+      setError(null)
+    } catch (err) {
+      console.error("Error fetching smart meters:", err)
+      setError("Failed to load smart meters. Please try again.")
     } finally {
       setLoading(false)
     }
   }
 
-  // Fetch device models from the API
-  const fetchDeviceModels = async () => {
+  // Fetch manufacturers
+  const fetchManufacturers = async () => {
     try {
-      // Call the API to get device models for smart meters
-      const response = await deviceModelsAPI.getAll({ device_type: "smart_meter" })
-      const models = response.data
-      setDeviceModels(models)
+      setLoading(true)
+      const response = await manufacturersAPI.getAll()
+      console.log("Manufacturers response:", response)
 
-      // Extract unique manufacturers
-      const uniqueManufacturers = [...new Set(models.map((model) => model.manufacturer))]
-      setManufacturers(uniqueManufacturers)
-
-      // Group models by manufacturer
-      const modelsByMfr = {}
-      models.forEach((model) => {
-        if (!modelsByMfr[model.manufacturer]) {
-          modelsByMfr[model.manufacturer] = []
-        }
-        modelsByMfr[model.manufacturer].push(model)
-      })
-      setModelsByManufacturer(modelsByMfr)
-    } catch (error) {
-      console.error("Error fetching device models:", error)
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to fetch device models. Please try again.",
-      })
+      // Handle both response formats - either direct array or {data: [...]}
+      if (Array.isArray(response)) {
+        setManufacturers(response)
+      } else if (response && response.data) {
+        setManufacturers(response.data)
+      } else {
+        console.error("Invalid manufacturers response format:", response)
+        setManufacturers([])
+      }
+    } catch (err) {
+      console.error("Error fetching manufacturers:", err)
+      setManufacturers([])
+    } finally {
+      setLoading(false)
     }
+  }
+
+  // Fetch models for a specific manufacturer
+  const fetchModels = async (manufacturerId) => {
+    if (!manufacturerId || manufacturerId === "all") {
+      console.log("No manufacturer ID provided or 'all' selected, clearing models")
+      setModels([])
+      return
+    }
+
+    try {
+      setLoading(true)
+      console.log(`Fetching models for manufacturer ID: ${manufacturerId}`)
+
+      // Verify that manufacturersAPI.getModels exists
+      if (typeof manufacturersAPI.getModels !== "function") {
+        console.error("manufacturersAPI.getModels is not a function!")
+        console.log("Available methods on manufacturersAPI:", Object.keys(manufacturersAPI))
+        throw new Error("getModels function not available")
+      }
+
+      const response = await manufacturersAPI.getModels(manufacturerId)
+      console.log("Models response:", response)
+
+      // Handle both response formats - either direct array or {data: [...]}
+      if (Array.isArray(response)) {
+        console.log(`Setting ${response.length} models from array response`)
+        setModels(response)
+      } else if (response && response.data) {
+        console.log(`Setting ${response.data.length} models from data property`)
+        setModels(response.data)
+      } else {
+        console.error("Invalid models response format:", response)
+        setModels([])
+      }
+    } catch (err) {
+      console.error("Error fetching models:", err)
+      setModels([])
+      // Show error message to user
+      setError(`Failed to load models: ${err.message}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Add this function after the fetchModels function:
+
+  // Fallback method to get models if API call fails
+  const getModelsDirectly = async (manufacturerId) => {
+    try {
+      console.log(`Attempting direct fetch for models of manufacturer ${manufacturerId}`)
+      const response = await fetch(`${API_BASE_URL}/manufacturers/${manufacturerId}/models`, {
+        method: "GET",
+        headers: { ...authHeader(), "Content-Type": "application/json" },
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed with status ${response.status}`)
+      }
+
+      const data = await response.json()
+      console.log("Direct fetch models response:", data)
+      return data
+    } catch (error) {
+      console.error("Error in direct fetch for models:", error)
+      throw error
+    }
+  }
+
+  // Update the handleManufacturerChange function to use the fallback if needed:
+  const handleManufacturerChange = async (value) => {
+    setFormData((prev) => ({ ...prev, manufacturer_id: value, model_id: "" }))
+
+    try {
+      await fetchModels(value)
+    } catch (err) {
+      console.log("Primary fetchModels failed, trying fallback method")
+      try {
+        const directModels = await getModelsDirectly(value)
+        if (Array.isArray(directModels)) {
+          setModels(directModels)
+        } else if (directModels && directModels.data) {
+          setModels(directModels.data)
+        }
+      } catch (fallbackErr) {
+        console.error("Fallback method also failed:", fallbackErr)
+        setError("Failed to load models. Please try again or contact support.")
+      }
+    }
+  }
+
+  const handleModelChange = (value) => {
+    setFormData((prev) => ({ ...prev, model_id: value }))
   }
 
   // Initial data fetch
   useEffect(() => {
+    fetchManufacturers()
     fetchSmartMeters()
-    fetchDeviceModels()
   }, [])
 
-  // Fetch data when filters change
+  // Fetch smart meters when filters change
   useEffect(() => {
     fetchSmartMeters()
-  }, [statusFilter, manufacturerFilter])
+  }, [statusFilter, selectedManufacturer, searchQuery])
 
-  // Handle search
-  const handleSearch = (e) => {
-    e.preventDefault()
-    fetchSmartMeters()
-  }
+  // Add this useEffect to load manufacturers when the dialog opens
+  useEffect(() => {
+    if (isAddDialogOpen || isEditDialogOpen) {
+      fetchManufacturers()
+    }
+  }, [isAddDialogOpen, isEditDialogOpen])
 
-  // Handle form input change
+  // Handle form input changes
   const handleInputChange = (e) => {
     const { name, value } = e.target
-    setFormData({
-      ...formData,
-      [name]: value,
-    })
+    setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  // Handle manufacturer change
-  const handleManufacturerChange = (value) => {
-    setFormData({
-      ...formData,
-      manufacturer: value,
-      model_id: "", // Reset model when manufacturer changes
-    })
+  // Handle status selection
+  const handleStatusChange = (value) => {
+    setFormData((prev) => ({ ...prev, status: value }))
   }
 
-  // Handle select change
-  const handleSelectChange = (name, value) => {
+  // Reset form data
+  const resetFormData = () => {
     setFormData({
-      ...formData,
-      [name]: value,
+      serial_number: "",
+      manufacturer_id: "",
+      model_id: "",
+      firmware_version: "",
+      communication_protocol: "",
+      status: "available",
     })
+    setModels([])
   }
 
   // Handle add smart meter
-  const handleAddMeter = async () => {
+  const handleAddSmartMeter = async (e) => {
+    e.preventDefault()
+
     try {
-      // Validate form
-      if (!formData.serial_number || !formData.model_id) {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Serial number and model are required.",
-        })
-        return
-      }
-
-      // Call the API to create a new smart meter
+      console.log("Adding smart meter with data:", formData)
       await smartMetersAPI.create(formData)
-
-      // Close dialog and reset form
       setIsAddDialogOpen(false)
-      setFormData({
-        serial_number: "",
-        manufacturer: "",
-        model_id: "",
-        mac_address: "",
-        firmware_version: "",
-        notes: "",
-      })
-
-      // Refresh the data
+      resetFormData()
       fetchSmartMeters()
-
-      toast({
-        title: "Success",
-        description: "Smart meter added successfully.",
-      })
-    } catch (error) {
-      console.error("Error adding smart meter:", error)
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message || "Failed to add smart meter. Please try again.",
-      })
+    } catch (err) {
+      console.error("Error adding smart meter:", err)
+      setError("Failed to add smart meter. Please try again.")
     }
   }
 
   // Handle edit smart meter
-  const handleEditMeter = async () => {
+  const handleEditSmartMeter = async (e) => {
+    e.preventDefault()
+
     try {
-      // Validate form
-      if (!formData.serial_number || !formData.model_id) {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Serial number and model are required.",
-        })
-        return
-      }
-
-      // Call the API to update the smart meter
-      await smartMetersAPI.update(selectedMeter.id, formData)
-
-      // Close dialog and reset selection
+      console.log("Updating smart meter with data:", formData)
+      await smartMetersAPI.update(currentSmartMeter.id, formData)
       setIsEditDialogOpen(false)
-      setSelectedMeter(null)
-
-      // Refresh the data
+      resetFormData()
       fetchSmartMeters()
-
-      toast({
-        title: "Success",
-        description: "Smart meter updated successfully.",
-      })
-    } catch (error) {
-      console.error("Error updating smart meter:", error)
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message || "Failed to update smart meter. Please try again.",
-      })
+    } catch (err) {
+      console.error("Error updating smart meter:", err)
+      setError("Failed to update smart meter. Please try again.")
     }
   }
 
   // Handle delete smart meter
-  const handleDeleteMeter = async () => {
+  const handleDeleteSmartMeter = async () => {
     try {
-      // Call the API to delete the smart meter
-      await smartMetersAPI.delete(selectedMeter.id)
-
-      // Close dialog and reset selection
+      console.log("Deleting smart meter with ID:", currentSmartMeter.id)
+      await smartMetersAPI.delete(currentSmartMeter.id)
       setIsDeleteDialogOpen(false)
-      setSelectedMeter(null)
-
-      // Refresh the data
       fetchSmartMeters()
-
-      toast({
-        title: "Success",
-        description: "Smart meter deleted successfully.",
-      })
-    } catch (error) {
-      console.error("Error deleting smart meter:", error)
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message || "Failed to delete smart meter. Please try again.",
-      })
+    } catch (err) {
+      console.error("Error deleting smart meter:", err)
+      setError("Failed to delete smart meter. Please try again.")
     }
   }
 
   // Open edit dialog
-  const openEditDialog = (meter) => {
-    // Find the model to get the manufacturer
-    const model = deviceModels.find((m) => m.id === meter.model_id)
-
-    setSelectedMeter(meter)
+  const openEditDialog = (smartMeter) => {
+    setCurrentSmartMeter(smartMeter)
     setFormData({
-      serial_number: meter.serial_number,
-      manufacturer: model?.manufacturer || "",
-      model_id: meter.model_id.toString(),
-      mac_address: meter.mac_address || "",
-      firmware_version: meter.firmware_version || "",
-      notes: meter.notes || "",
+      serial_number: smartMeter.serial_number,
+      manufacturer_id: smartMeter.manufacturer_id,
+      model_id: smartMeter.model_id,
+      firmware_version: smartMeter.firmware_version || "",
+      communication_protocol: smartMeter.communication_protocol || "",
+      status: smartMeter.status || "available",
     })
+    fetchModels(smartMeter.manufacturer_id)
     setIsEditDialogOpen(true)
   }
 
   // Open delete dialog
-  const openDeleteDialog = (meter) => {
-    setSelectedMeter(meter)
+  const openDeleteDialog = (smartMeter) => {
+    setCurrentSmartMeter(smartMeter)
     setIsDeleteDialogOpen(true)
   }
 
+  // Get status badge color
+  const getStatusBadgeColor = (status) => {
+    switch (status) {
+      case "available":
+        return "bg-green-500"
+      case "assigned":
+        return "bg-blue-500"
+      case "maintenance":
+        return "bg-yellow-500"
+      case "decommissioned":
+        return "bg-red-500"
+      default:
+        return "bg-gray-500"
+    }
+  }
+
   return (
-    <div className="flex flex-col gap-4 p-4 md:p-8">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Smart Meters</h1>
-          <p className="text-muted-foreground">Manage your smart meter inventory</p>
-        </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Smart Meter
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add New Smart Meter</DialogTitle>
-              <DialogDescription>
-                Enter the details of the new smart meter to add it to your inventory.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="serialNumber">Serial Number</Label>
+    <div className="container mx-auto py-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Smart Meters</h1>
+        <Button onClick={() => setIsAddDialogOpen(true)}>
+          <PlusCircle className="mr-2 h-4 w-4" />
+          Add New Smart Meter
+        </Button>
+      </div>
+
+      <Card className="mb-6">
+        <CardContent className="pt-6">
+          <div className="flex flex-col md:flex-row gap-4 items-end">
+            <div className="flex-1">
+              <Label htmlFor="search">Search</Label>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
                 <Input
-                  id="serialNumber"
+                  id="search"
+                  placeholder="Search by serial number or model..."
+                  className="pl-8"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="w-full md:w-1/4">
+              <Label htmlFor="status">Status</Label>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger id="status">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="available">Available</SelectItem>
+                  <SelectItem value="assigned">Assigned</SelectItem>
+                  <SelectItem value="maintenance">Maintenance</SelectItem>
+                  <SelectItem value="decommissioned">Decommissioned</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-full md:w-1/4">
+              <Label htmlFor="manufacturer">Manufacturer</Label>
+              <Select value={selectedManufacturer} onValueChange={setSelectedManufacturer}>
+                <SelectTrigger id="manufacturer">
+                  <SelectValue placeholder="Filter by manufacturer" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Manufacturers</SelectItem>
+                  {manufacturers.map((manufacturer) => (
+                    <SelectItem key={manufacturer.id} value={manufacturer.id}>
+                      {manufacturer.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button variant="outline" onClick={fetchSmartMeters} className="h-10">
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Refresh
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">{error}</div>}
+
+      <Card>
+        <CardContent className="pt-6">
+          {loading ? (
+            <div className="text-center py-4">Loading smart meters...</div>
+          ) : smartMeters.length === 0 ? (
+            <div className="text-center py-4">No smart meters found.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Serial Number</TableHead>
+                    <TableHead>Manufacturer</TableHead>
+                    <TableHead>Model</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Firmware Version</TableHead>
+                    <TableHead>Assigned To</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {smartMeters.map((meter) => (
+                    <TableRow key={meter.id}>
+                      <TableCell className="font-medium">{meter.serial_number}</TableCell>
+                      <TableCell>{meter.model?.manufacturer || "N/A"}</TableCell>
+                      <TableCell>{meter.model?.model_name || "N/A"}</TableCell>
+                      <TableCell>
+                        <Badge className={getStatusBadgeColor(meter.status)}>{meter.status}</Badge>
+                      </TableCell>
+                      <TableCell>{meter.firmware_version || "N/A"}</TableCell>
+                      <TableCell>{meter.assignedTo || "Not Assigned"}</TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="icon" onClick={() => openEditDialog(meter)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => openDeleteDialog(meter)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Add Smart Meter Dialog */}
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Add New Smart Meter</DialogTitle>
+            <DialogDescription>Enter the details of the new smart meter.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleAddSmartMeter}>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="serial_number" className="text-right">
+                  Serial Number
+                </Label>
+                <Input
+                  id="serial_number"
                   name="serial_number"
                   value={formData.serial_number}
                   onChange={handleInputChange}
-                  placeholder="Enter serial number"
+                  className="col-span-3"
+                  required
                 />
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="manufacturer">Manufacturer</Label>
-                <Select value={formData.manufacturer} onValueChange={(value) => handleManufacturerChange(value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select manufacturer" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {manufacturers.map((manufacturer) => (
-                      <SelectItem key={manufacturer} value={manufacturer}>
-                        {manufacturer}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="model">Model</Label>
-                <Select
-                  value={formData.model_id}
-                  onValueChange={(value) => handleSelectChange("model_id", value)}
-                  disabled={!formData.manufacturer}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={formData.manufacturer ? "Select model" : "Select manufacturer first"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {formData.manufacturer &&
-                      modelsByManufacturer[formData.manufacturer]?.map((model) => (
-                        <SelectItem key={model.id} value={model.id.toString()}>
-                          {model.model_name}
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="manufacturer_id" className="text-right">
+                  Manufacturer
+                </Label>
+                <div className="col-span-3">
+                  <Select value={formData.manufacturer_id} onValueChange={handleManufacturerChange} required>
+                    <SelectTrigger id="manufacturer_id">
+                      <SelectValue placeholder="Select manufacturer" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {manufacturers.length > 0 ? (
+                        manufacturers.map((manufacturer) => (
+                          <SelectItem key={manufacturer.id} value={manufacturer.id}>
+                            {manufacturer.name}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="no-manufacturers" disabled>
+                          No manufacturers available
                         </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
+                      )}
+                    </SelectContent>
+                  </Select>
+                  <div className="text-xs text-gray-500 mt-1">{manufacturers.length} manufacturers available</div>
+                </div>
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="mac_address">MAC Address (Optional)</Label>
-                <Input
-                  id="mac_address"
-                  name="mac_address"
-                  value={formData.mac_address}
-                  onChange={handleInputChange}
-                  placeholder="Enter MAC address"
-                />
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="model_id" className="text-right">
+                  Model
+                </Label>
+                <div className="col-span-3">
+                  <Select
+                    value={formData.model_id}
+                    onValueChange={handleModelChange}
+                    disabled={!formData.manufacturer_id || formData.manufacturer_id === "all"}
+                    required
+                  >
+                    <SelectTrigger id="model_id">
+                      <SelectValue placeholder="Select model" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {models.length > 0 ? (
+                        models.map((model) => (
+                          <SelectItem key={model.id} value={model.id}>
+                            {model.model_name}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="no-models" disabled>
+                          {formData.manufacturer_id ? "No models available" : "Select a manufacturer first"}
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                  <div className="text-xs text-gray-500 mt-1">{models.length} models available</div>
+                </div>
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="firmware_version">Firmware Version (Optional)</Label>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="firmware_version" className="text-right">
+                  Firmware Version
+                </Label>
                 <Input
                   id="firmware_version"
                   name="firmware_version"
                   value={formData.firmware_version}
                   onChange={handleInputChange}
-                  placeholder="Enter firmware version"
+                  className="col-span-3"
                 />
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="notes">Notes (Optional)</Label>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="communication_protocol" className="text-right">
+                  Protocol
+                </Label>
                 <Input
-                  id="notes"
-                  name="notes"
-                  value={formData.notes}
+                  id="communication_protocol"
+                  name="communication_protocol"
+                  value={formData.communication_protocol}
                   onChange={handleInputChange}
-                  placeholder="Enter notes"
+                  className="col-span-3"
                 />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="status" className="text-right">
+                  Status
+                </Label>
+                <Select value={formData.status} onValueChange={handleStatusChange}>
+                  <SelectTrigger id="status" className="col-span-3">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="available">Available</SelectItem>
+                    <SelectItem value="assigned">Assigned</SelectItem>
+                    <SelectItem value="maintenance">Maintenance</SelectItem>
+                    <SelectItem value="decommissioned">Decommissioned</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+              <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleAddMeter}>Add Smart Meter</Button>
+              <Button type="submit">Add Smart Meter</Button>
             </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search smart meters..."
-            className="pl-8"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSearch(e)}
-          />
-        </div>
-        <Button variant="outline" onClick={handleSearch}>
-          Search
-        </Button>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Filter by status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value="online">Online</SelectItem>
-            <SelectItem value="offline">Offline</SelectItem>
-            <SelectItem value="maintenance">Maintenance</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={manufacturerFilter} onValueChange={setManufacturerFilter}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Filter by manufacturer" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Manufacturers</SelectItem>
-            {manufacturers.map((manufacturer) => (
-              <SelectItem key={manufacturer} value={manufacturer}>
-                {manufacturer}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Serial Number</TableHead>
-              <TableHead>Manufacturer</TableHead>
-              <TableHead>Model</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Last Seen</TableHead>
-              <TableHead>Assignment</TableHead>
-              <TableHead className="w-[80px]">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center">
-                  <div className="flex justify-center">
-                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : smartMeters.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center">
-                  No smart meters found.
-                </TableCell>
-              </TableRow>
-            ) : (
-              smartMeters.map((meter) => (
-                <TableRow key={meter.id}>
-                  <TableCell className="font-medium">{meter.serial_number}</TableCell>
-                  <TableCell>{meter.model?.manufacturer || "Unknown"}</TableCell>
-                  <TableCell>{meter.model?.model_name || "Unknown"}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      {meter.status === "online" ? (
-                        <>
-                          <CheckCircle className="h-4 w-4 text-green-500" />
-                          <span>Online</span>
-                        </>
-                      ) : (
-                        <>
-                          <XCircle className="h-4 w-4 text-destructive" />
-                          <span>Offline</span>
-                        </>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>{meter.last_seen ? new Date(meter.last_seen).toLocaleString() : "Never"}</TableCell>
-                  <TableCell>
-                    {meter.assigned_to ? (
-                      <Badge variant="outline" className="bg-primary/10">
-                        {meter.assigned_to.company?.name || "Unknown"}
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="bg-muted">
-                        Unassigned
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <span className="sr-only">Open menu</span>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => openEditDialog(meter)}>
-                          <Pencil className="mr-2 h-4 w-4" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => openDeleteDialog(meter)}>
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem>
-                          <CircuitBoard className="mr-2 h-4 w-4" />
-                          View Details
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* Edit Dialog */}
+      {/* Edit Smart Meter Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Edit Smart Meter</DialogTitle>
-            <DialogDescription>Update the details of the selected smart meter.</DialogDescription>
+            <DialogDescription>Update the details of the smart meter.</DialogDescription>
           </DialogHeader>
-          {selectedMeter && (
+          <form onSubmit={handleEditSmartMeter}>
             <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="edit-serialNumber">Serial Number</Label>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit_serial_number" className="text-right">
+                  Serial Number
+                </Label>
                 <Input
-                  id="edit-serialNumber"
+                  id="edit_serial_number"
                   name="serial_number"
                   value={formData.serial_number}
                   onChange={handleInputChange}
+                  className="col-span-3"
+                  required
                 />
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="edit-manufacturer">Manufacturer</Label>
-                <Select value={formData.manufacturer} onValueChange={(value) => handleManufacturerChange(value)}>
-                  <SelectTrigger>
-                    <SelectValue />
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit_manufacturer_id" className="text-right">
+                  Manufacturer
+                </Label>
+                <Select value={formData.manufacturer_id} onValueChange={handleManufacturerChange} required>
+                  <SelectTrigger id="edit_manufacturer_id" className="col-span-3">
+                    <SelectValue placeholder="Select manufacturer" />
                   </SelectTrigger>
                   <SelectContent>
                     {manufacturers.map((manufacturer) => (
-                      <SelectItem key={manufacturer} value={manufacturer}>
-                        {manufacturer}
+                      <SelectItem key={manufacturer.id} value={manufacturer.id}>
+                        {manufacturer.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="edit-model">Model</Label>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit_model_id" className="text-right">
+                  Model
+                </Label>
                 <Select
                   value={formData.model_id}
-                  onValueChange={(value) => handleSelectChange("model_id", value)}
-                  disabled={!formData.manufacturer}
+                  onValueChange={handleModelChange}
+                  disabled={!formData.manufacturer_id}
+                  required
                 >
-                  <SelectTrigger>
-                    <SelectValue />
+                  <SelectTrigger id="edit_model_id" className="col-span-3">
+                    <SelectValue placeholder="Select model" />
                   </SelectTrigger>
                   <SelectContent>
-                    {formData.manufacturer &&
-                      modelsByManufacturer[formData.manufacturer]?.map((model) => (
-                        <SelectItem key={model.id} value={model.id.toString()}>
-                          {model.model_name}
-                        </SelectItem>
-                      ))}
+                    {models.map((model) => (
+                      <SelectItem key={model.id} value={model.id}>
+                        {model.model_name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="edit-mac_address">MAC Address</Label>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit_firmware_version" className="text-right">
+                  Firmware Version
+                </Label>
                 <Input
-                  id="edit-mac_address"
-                  name="mac_address"
-                  value={formData.mac_address}
-                  onChange={handleInputChange}
-                  placeholder="Enter MAC address"
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="edit-firmware_version">Firmware Version</Label>
-                <Input
-                  id="edit-firmware_version"
+                  id="edit_firmware_version"
                   name="firmware_version"
                   value={formData.firmware_version}
                   onChange={handleInputChange}
-                  placeholder="Enter firmware version"
+                  className="col-span-3"
                 />
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="edit-notes">Notes</Label>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit_communication_protocol" className="text-right">
+                  Protocol
+                </Label>
                 <Input
-                  id="edit-notes"
-                  name="notes"
-                  value={formData.notes}
+                  id="edit_communication_protocol"
+                  name="communication_protocol"
+                  value={formData.communication_protocol}
                   onChange={handleInputChange}
-                  placeholder="Enter notes"
+                  className="col-span-3"
                 />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit_status" className="text-right">
+                  Status
+                </Label>
+                <Select value={formData.status} onValueChange={handleStatusChange}>
+                  <SelectTrigger id="edit_status" className="col-span-3">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="available">Available</SelectItem>
+                    <SelectItem value="assigned">Assigned</SelectItem>
+                    <SelectItem value="maintenance">Maintenance</SelectItem>
+                    <SelectItem value="decommissioned">Decommissioned</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleEditMeter}>Save Changes</Button>
-          </DialogFooter>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">Update Smart Meter</Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Dialog */}
+      {/* Delete Smart Meter Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Delete Smart Meter</DialogTitle>
+            <DialogTitle>Confirm Deletion</DialogTitle>
             <DialogDescription>
               Are you sure you want to delete this smart meter? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
-          {selectedMeter && (
-            <div className="py-4">
-              <p className="mb-2">You are about to delete the following smart meter:</p>
-              <div className="rounded-md bg-muted p-4">
-                <p>
-                  <strong>Serial Number:</strong> {selectedMeter.serial_number}
-                </p>
-                <p>
-                  <strong>Manufacturer:</strong> {selectedMeter.model?.manufacturer || "Unknown"}
-                </p>
-                <p>
-                  <strong>Model:</strong> {selectedMeter.model?.model_name || "Unknown"}
-                </p>
-              </div>
-            </div>
-          )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDeleteMeter}>
+            <Button type="button" variant="destructive" onClick={handleDeleteSmartMeter}>
               Delete
             </Button>
           </DialogFooter>

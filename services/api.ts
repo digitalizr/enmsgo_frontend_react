@@ -2,8 +2,8 @@
 // This file serves as the central point for all API calls to the backend
 
 // Base API URL - should be set from environment variables in production
-// const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"
-const API_BASE_URL = "https://api.enmsgo.com/api"
+//const API_BASE_URL = "https://api.enmsgo.com/api"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"
 
 // Helper function for handling API responses
 const handleResponse = async (response) => {
@@ -167,16 +167,31 @@ export const authAPI = {
 export const smartMetersAPI = {
   getAll: async (params = {}) => {
     try {
-      const queryString = new URLSearchParams(params).toString()
+      // Filter out undefined or empty parameters
+      const filteredParams = Object.fromEntries(
+        Object.entries(params).filter(([_, value]) => value !== undefined && value !== ""),
+      )
+
+      const queryString = new URLSearchParams(filteredParams).toString()
       const response = await fetch(`${API_BASE_URL}/devices/smart-meters?${queryString}`, {
         method: "GET",
         headers: { ...authHeader(), "Content-Type": "application/json" },
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
+        const errorText = await response.text()
+        console.error("Server error response text:", errorText)
+
+        let errorData
+        try {
+          errorData = JSON.parse(errorText)
+        } catch (e) {
+          console.error("Error parsing error response:", e)
+          throw new Error(`Failed to fetch smart meters: ${errorText}`)
+        }
+
         console.error("Server error response:", errorData)
-        throw new Error(errorData.message || "Failed to fetch smart meters")
+        throw new Error(errorData.message || errorData.details || "Failed to fetch smart meters")
       }
 
       return await response.json()
@@ -194,9 +209,19 @@ export const smartMetersAPI = {
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
+        const errorText = await response.text()
+        console.error("Server error response text:", errorText)
+
+        let errorData
+        try {
+          errorData = JSON.parse(errorText)
+        } catch (e) {
+          console.error("Error parsing error response:", e)
+          throw new Error(`Failed to fetch smart meter: ${errorText}`)
+        }
+
         console.error("Server error response:", errorData)
-        throw new Error(errorData.message || "Failed to fetch smart meter")
+        throw new Error(errorData.message || errorData.details || "Failed to fetch smart meter")
       }
 
       return await response.json()
@@ -208,6 +233,7 @@ export const smartMetersAPI = {
 
   create: async (data) => {
     try {
+      console.log("Creating smart meter with data:", data)
       const response = await fetch(`${API_BASE_URL}/devices/smart-meters`, {
         method: "POST",
         headers: { ...authHeader(), "Content-Type": "application/json" },
@@ -215,9 +241,19 @@ export const smartMetersAPI = {
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
+        const errorText = await response.text()
+        console.error("Server error response text:", errorText)
+
+        let errorData
+        try {
+          errorData = JSON.parse(errorText)
+        } catch (e) {
+          console.error("Error parsing error response:", e)
+          throw new Error(`Failed to create smart meter: ${errorText}`)
+        }
+
         console.error("Server error response:", errorData)
-        throw new Error(errorData.message || "Failed to create smart meter")
+        throw new Error(errorData.message || errorData.details || "Failed to create smart meter")
       }
 
       return await response.json()
@@ -236,9 +272,19 @@ export const smartMetersAPI = {
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
+        const errorText = await response.text()
+        console.error("Server error response text:", errorText)
+
+        let errorData
+        try {
+          errorData = JSON.parse(errorText)
+        } catch (e) {
+          console.error("Error parsing error response:", e)
+          throw new Error(`Failed to update smart meter: ${errorText}`)
+        }
+
         console.error("Server error response:", errorData)
-        throw new Error(errorData.message || "Failed to update smart meter")
+        throw new Error(errorData.message || errorData.details || "Failed to update smart meter")
       }
 
       return await response.json()
@@ -256,9 +302,19 @@ export const smartMetersAPI = {
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
+        const errorText = await response.text()
+        console.error("Server error response text:", errorText)
+
+        let errorData
+        try {
+          errorData = JSON.parse(errorText)
+        } catch (e) {
+          console.error("Error parsing error response:", e)
+          throw new Error(`Failed to delete smart meter: ${errorText}`)
+        }
+
         console.error("Server error response:", errorData)
-        throw new Error(errorData.message || "Failed to delete smart meter")
+        throw new Error(errorData.message || errorData.details || "Failed to delete smart meter")
       }
 
       return await response.json()
@@ -275,29 +331,29 @@ export const edgeGatewaysAPI = {
     try {
       // Filter out undefined or empty parameters
       const filteredParams = Object.fromEntries(
-        Object.entries(params).filter(([_, value]) => value !== undefined && value !== "")
-      );
+        Object.entries(params).filter(([_, value]) => value !== undefined && value !== ""),
+      )
 
-      const queryString = new URLSearchParams(filteredParams).toString();
+      const queryString = new URLSearchParams(filteredParams).toString()
       const response = await fetch(`${API_BASE_URL}/devices/edge-gateways?${queryString}`, {
         method: "GET",
         headers: { ...authHeader(), "Content-Type": "application/json" },
-      });
+      })
 
-      console.log("Fetching edge gateways with params:", filteredParams); // Debugging log
+      console.log("Fetching edge gateways with params:", filteredParams) // Debugging log
 
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Server error response:", errorData); // Debugging log
-        throw new Error(errorData.message || "Failed to fetch edge gateways");
+        const errorData = await response.json()
+        console.error("Server error response:", errorData) // Debugging log
+        throw new Error(errorData.message || "Failed to fetch edge gateways")
       }
 
-      const data = await response.json();
-      console.log("Edge Gateways API Response:", data); // Debugging log
-      return data;
+      const data = await response.json()
+      console.log("Edge Gateways API Response:", data) // Debugging log
+      return data
     } catch (error) {
-      console.error("Error in edgeGatewaysAPI.getAll:", error); // Debugging log
-      throw error;
+      console.error("Error in edgeGatewaysAPI.getAll:", error) // Debugging log
+      throw error
     }
   },
 
@@ -354,16 +410,32 @@ export const edgeGatewaysAPI = {
     try {
       console.log(`Updating edge gateway with ID: ${id} and data:`, data) // Debugging log
 
+      // Ensure status is not null
+      const dataToSend = {
+        ...data,
+        status: data.status || "available",
+      }
+
       const response = await fetch(`${API_BASE_URL}/devices/edge-gateways/${id}`, {
         method: "PUT",
         headers: { ...authHeader(), "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify(dataToSend),
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
-        console.error("Server error response:", errorData) // Debugging log
-        throw new Error(errorData.message || "Failed to update edge gateway")
+        const errorText = await response.text()
+        console.error("Server error response text:", errorText)
+
+        let errorData
+        try {
+          errorData = JSON.parse(errorText)
+        } catch (e) {
+          console.error("Error parsing error response:", e)
+          throw new Error(`Failed to update edge gateway: ${errorText}`)
+        }
+
+        console.error("Server error response:", errorData)
+        throw new Error(errorData.message || errorData.details || "Failed to update edge gateway")
       }
 
       const responseData = await response.json()
@@ -1293,42 +1365,133 @@ export const billingAPI = {
 // Manufacturers API
 export const manufacturersAPI = {
   getAll: async () => {
-    const response = await fetch(`${API_BASE_URL}/manufacturers`, {
-      method: "GET",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-    })
-    return handleResponse(response)
+    try {
+      console.log("Fetching all manufacturers")
+      const response = await fetch(`${API_BASE_URL}/manufacturers`, {
+        method: "GET",
+        headers: { ...authHeader(), "Content-Type": "application/json" },
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error("Server error response:", errorData)
+        throw new Error(errorData.message || "Failed to fetch manufacturers")
+      }
+
+      const data = await response.json()
+      console.log("Raw manufacturers API response:", data)
+
+      // Return directly if it's an array, otherwise extract data property
+      if (Array.isArray(data)) {
+        return data
+      } else if (data && data.data) {
+        return data.data
+      } else {
+        console.error("Unexpected response format:", data)
+        return []
+      }
+    } catch (error) {
+      console.error("Error in manufacturersAPI.getAll:", error)
+      throw error
+    }
   },
+
+  // Update the getModels function to handle different response formats
+  getModels: async (manufacturerId) => {
+    try {
+      console.log(`Fetching models for manufacturer ID: ${manufacturerId}`)
+
+      const response = await fetch(`${API_BASE_URL}/manufacturers/${manufacturerId}/models`, {
+        method: "GET",
+        headers: { ...authHeader(), "Content-Type": "application/json" },
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error("Server error response:", errorData)
+        throw new Error(errorData.message || errorData.details || "Failed to fetch models")
+      }
+
+      const data = await response.json()
+      console.log("Raw models API response:", data)
+
+      // Normalize the response format
+      if (Array.isArray(data)) {
+        return data
+      } else if (data && data.data) {
+        return data.data
+      } else if (data && Array.isArray(data.rows)) {
+        return data.rows
+      } else {
+        console.error("Unexpected response format:", data)
+        return []
+      }
+    } catch (error) {
+      console.error("Error in manufacturersAPI.getModels:", error)
+      throw error
+    }
+  },
+
+  // Keep the rest of the manufacturersAPI methods unchanged
   getById: async (id) => {
-    const response = await fetch(`${API_BASE_URL}/manufacturers/${id}`, {
-      method: "GET",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-    })
-    return handleResponse(response)
+    try {
+      const response = await fetch(`${API_BASE_URL}/manufacturers/${id}`, {
+        method: "GET",
+        headers: { ...authHeader(), "Content-Type": "application/json" },
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error("Server error response:", errorData)
+        throw new Error(errorData.message || "Failed to fetch manufacturer")
+      }
+
+      return await response.json()
+    } catch (error) {
+      console.error("Error in manufacturersAPI.getById:", error)
+      throw error
+    }
   },
+
   create: async (data) => {
-    const response = await fetch(`${API_BASE_URL}/manufacturers`, {
-      method: "POST",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    })
-    return handleResponse(response)
+    try {
+      const response = await fetch(`${API_BASE_URL}/manufacturers`, {
+        method: "POST",
+        headers: { ...authHeader(), "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      })
+      return handleResponse(response)
+    } catch (error) {
+      console.error("Error in manufacturersAPI.create:", error)
+      throw error
+    }
   },
+
   update: async (id, data) => {
-    const response = await fetch(`${API_BASE_URL}/manufacturers/${id}`, {
-      method: "PUT",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    })
-    return handleResponse(response)
+    try {
+      const response = await fetch(`${API_BASE_URL}/manufacturers/${id}`, {
+        method: "PUT",
+        headers: { ...authHeader(), "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      })
+      return handleResponse(response)
+    } catch (error) {
+      console.error("Error in manufacturersAPI.update:", error)
+      throw error
+    }
   },
+
   delete: async (id) => {
-    const response = await fetch(`${API_BASE_URL}/manufacturers/${id}`, {
-      method: "DELETE",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-    })
-    return handleResponse(response)
+    try {
+      const response = await fetch(`${API_BASE_URL}/manufacturers/${id}`, {
+        method: "DELETE",
+        headers: { ...authHeader(), "Content-Type": "application/json" },
+      })
+      return handleResponse(response)
+    } catch (error) {
+      console.error("Error in manufacturersAPI.delete:", error)
+      throw error
+    }
   },
 }
-
 

@@ -60,7 +60,7 @@ export default function EdgeGatewaysPage() {
   const [newIpAddress, setNewIpAddress] = useState({ ip_address: "", port: "" })
   const [formData, setFormData] = useState({
     serial_number: "",
-    manufacturer: "",
+    manufacturer_id: "",
     model_id: "",
     mac_address: "",
     firmware_version: "",
@@ -72,7 +72,7 @@ export default function EdgeGatewaysPage() {
     cpu: "",
     memory: "",
     storage: "",
-    connectivity: [],
+    connectivity: [] as string[],
     additional_specs: "",
   })
   const [connectionData, setConnectionData] = useState({
@@ -85,29 +85,47 @@ export default function EdgeGatewaysPage() {
     api_key: "",
     notes: "",
   })
+  const [models, setModels] = useState([])
 
   // Fetch edge gateways
   const fetchEdgeGateways = async () => {
     try {
       setLoading(true)
-      const response = await edgeGatewaysAPI.getAll({
+      const params = {
         limit: pagination.limit,
         offset: pagination.offset,
-        status: filters.status !== "all" ? filters.status : undefined,
-        search: filters.search,
-      })
+      }
 
-      setEdgeGateways(response.data)
-      setPagination(response.pagination)
+      // Only add parameters if they have valid values
+      if (filters.status !== "all") params.status = filters.status
+      if (filters.search) params.search = filters.search
+
+      console.log("Fetching edge gateways with params:", params)
+      const response = await edgeGatewaysAPI.getAll(params)
+      console.log("Edge gateways response:", response)
+
+      if (response && response.data) {
+        setEdgeGateways(response.data)
+        setPagination(
+          response.pagination || {
+            total: 0,
+            limit: 10,
+            offset: 0,
+            pages: 0,
+          },
+        )
+      } else {
+        setEdgeGateways([])
+      }
       setError(null)
     } catch (err) {
-      setError(err.message || "Failed to fetch edge gateways")
+      console.error("Error fetching edge gateways:", err)
+      setError("Failed to load edge gateways. Please try again.")
       toast({
         variant: "destructive",
         title: "Error",
         description: "Failed to fetch edge gateways",
       })
-      console.error("Error fetching edge gateways:", err)
     } finally {
       setLoading(false)
     }
@@ -117,7 +135,16 @@ export default function EdgeGatewaysPage() {
   const fetchManufacturers = async () => {
     try {
       const response = await manufacturersAPI.getAll()
-      setManufacturers(response.data || [])
+      console.log("Manufacturers response:", response)
+
+      if (Array.isArray(response)) {
+        setManufacturers(response)
+      } else if (response && response.data) {
+        setManufacturers(response.data)
+      } else {
+        console.error("Invalid manufacturers response format:", response)
+        setManufacturers([])
+      }
     } catch (err) {
       console.error("Error fetching manufacturers:", err)
       toast({
@@ -135,16 +162,24 @@ export default function EdgeGatewaysPage() {
         device_type: "edge_gateway",
       })
 
-      const models = response.data
+      console.log("Device models response:", response)
+
+      let models = []
+      if (Array.isArray(response)) {
+        models = response
+      } else if (response && response.data) {
+        models = response.data
+      }
+
       setDeviceModels(models)
 
       // Group models by manufacturer
       const modelsByMfr = {}
       models.forEach((model) => {
-        if (!modelsByMfr[model.manufacturer]) {
-          modelsByMfr[model.manufacturer] = []
+        if (!modelsByMfr[model.manufacturer_id]) {
+          modelsByMfr[model.manufacturer_id] = []
         }
-        modelsByMfr[model.manufacturer].push(model)
+        modelsByMfr[model.manufacturer_id].push(model)
       })
       setModelsByManufacturer(modelsByMfr)
     } catch (err) {
@@ -157,11 +192,47 @@ export default function EdgeGatewaysPage() {
     }
   }
 
+  // Fetch models for a specific manufacturer
+  const fetchModels = async (manufacturerId) => {
+    if (!manufacturerId || manufacturerId === "all") {
+      setModels([])
+      return
+    }
+
+    try {
+      console.log(`Fetching models for manufacturer ID: ${manufacturerId}`)
+      const response = await manufacturersAPI.getModels(manufacturerId)
+      console.log("Models response:", response)
+
+      // Handle both response formats - either direct array or {data: [...]}
+      if (Array.isArray(response)) {
+        setModelsByManufacturer((prev) => ({
+          ...prev,
+          [manufacturerId]: response,
+        }))
+      } else if (response && response.data) {
+        setModelsByManufacturer((prev) => ({
+          ...prev,
+          [manufacturerId]: response.data,
+        }))
+      } else {
+        console.error("Invalid models response format:", response)
+      }
+    } catch (err) {
+      console.error("Error fetching models:", err)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to fetch models for manufacturer",
+      })
+    }
+  }
+
   // Fetch IP addresses for a gateway
   const fetchIpAddresses = async (gatewayId) => {
     try {
       const response = await edgeGatewaysAPI.getIpAddresses(gatewayId)
-      setIpAddresses(response.data)
+      setIpAddresses(response.data || [])
     } catch (err) {
       console.error("Error fetching IP addresses:", err)
       toast({
@@ -176,17 +247,22 @@ export default function EdgeGatewaysPage() {
   const fetchSpecifications = async (gatewayId) => {
     try {
       const response = await edgeGatewaysAPI.getSpecifications(gatewayId)
-      setSpecsData(
-        response.data || {
-          os: "",
-          os_version: "",
-          cpu: "",
-          memory: "",
-          storage: "",
-          connectivity: [],
-          additional_specs: "",
-        },
-      )
+      const data = response.data || {
+        os: "",
+        os_version: "",
+        cpu: "",
+        memory: "",
+        storage: "",
+        connectivity: [],
+        additional_specs: "",
+      }
+
+      // Ensure connectivity is always an array
+      if (!Array.isArray(data.connectivity)) {
+        data.connectivity = []
+      }
+
+      setSpecsData(data)
     } catch (err) {
       console.error("Error fetching specifications:", err)
       toast({
@@ -254,9 +330,14 @@ export default function EdgeGatewaysPage() {
   const handleManufacturerChange = (value) => {
     setFormData((prev) => ({
       ...prev,
-      manufacturer: value,
+      manufacturer_id: value,
       model_id: "", // Reset model when manufacturer changes
     }))
+
+    // Fetch models for this manufacturer if not already loaded
+    if (value && (!modelsByManufacturer[value] || modelsByManufacturer[value].length === 0)) {
+      fetchModels(value)
+    }
   }
 
   // Handle specs input change
@@ -268,7 +349,8 @@ export default function EdgeGatewaysPage() {
   // Handle connectivity change
   const handleConnectivityChange = (value) => {
     setSpecsData((prev) => {
-      const connectivity = [...prev.connectivity]
+      // Ensure connectivity is always an array
+      const connectivity = Array.isArray(prev.connectivity) ? [...prev.connectivity] : []
 
       if (connectivity.includes(value)) {
         return {
@@ -308,7 +390,7 @@ export default function EdgeGatewaysPage() {
       setIsAddDialogOpen(false)
       setFormData({
         serial_number: "",
-        manufacturer: "",
+        manufacturer_id: "",
         model_id: "",
         mac_address: "",
         firmware_version: "",
@@ -332,7 +414,13 @@ export default function EdgeGatewaysPage() {
   // Handle edit edge gateway
   const handleEditGateway = async () => {
     try {
-      await edgeGatewaysAPI.update(currentGateway.id, formData)
+      // Make sure formData has a status value
+      const dataToSend = {
+        ...formData,
+        status: formData.status || "available", // Default to "available" if status is missing
+      }
+
+      await edgeGatewaysAPI.update(currentGateway.id, dataToSend)
       setIsEditDialogOpen(false)
       setCurrentGateway(null)
       fetchEdgeGateways()
@@ -353,7 +441,13 @@ export default function EdgeGatewaysPage() {
   // Handle update specifications
   const handleUpdateSpecs = async () => {
     try {
-      await edgeGatewaysAPI.updateSpecifications(currentGateway.id, specsData)
+      // Ensure connectivity is an array before sending to API
+      const dataToSend = {
+        ...specsData,
+        connectivity: Array.isArray(specsData.connectivity) ? specsData.connectivity : [],
+      }
+
+      await edgeGatewaysAPI.updateSpecifications(currentGateway.id, dataToSend)
       setIsSpecsDialogOpen(false)
       toast({
         title: "Success",
@@ -458,12 +552,22 @@ export default function EdgeGatewaysPage() {
     setCurrentGateway(gateway)
     setFormData({
       serial_number: gateway.serial_number,
-      manufacturer: model?.manufacturer || "",
-      model_id: gateway.model_id.toString(),
+      manufacturer_id: model?.manufacturer_id || "",
+      model_id: gateway.model_id || "",
       mac_address: gateway.mac_address || "",
       firmware_version: gateway.firmware_version || "",
       notes: gateway.notes || "",
+      status: gateway.status || "available", // Make sure status is included
     })
+
+    // If we have a manufacturer, make sure we have its models
+    if (
+      model?.manufacturer_id &&
+      (!modelsByManufacturer[model.manufacturer_id] || modelsByManufacturer[model.manufacturer_id].length === 0)
+    ) {
+      fetchModels(model.manufacturer_id)
+    }
+
     setIsEditDialogOpen(true)
   }
 
@@ -610,7 +714,7 @@ export default function EdgeGatewaysPage() {
                         <TableRow key={gateway.id}>
                           <TableCell className="font-medium">{gateway.serial_number}</TableCell>
                           <TableCell>
-                            {gateway.model?.manufacturer} {gateway.model?.model_name}
+                            {gateway.manufacturer_name || ""} {gateway.model_name || ""}
                           </TableCell>
                           <TableCell>{gateway.mac_address || "N/A"}</TableCell>
                           <TableCell>{getStatusBadge(gateway.status)}</TableCell>
@@ -669,60 +773,62 @@ export default function EdgeGatewaysPage() {
                 </Table>
               </div>
 
-              <div className="mt-4">
-                <Pagination>
-                  <PaginationContent>
-                    <PaginationItem>
-                      <PaginationPrevious
-                        onClick={() =>
-                          setPagination((prev) => ({
-                            ...prev,
-                            offset: Math.max(0, prev.offset - prev.limit),
-                          }))
-                        }
-                        disabled={pagination.offset === 0}
-                      />
-                    </PaginationItem>
-
-                    {Array.from({ length: Math.min(5, pagination.pages) }, (_, i) => {
-                      const pageNumber = Math.min(
-                        Math.max(1, Math.floor(pagination.offset / pagination.limit) + 1 - 2) + i,
-                        pagination.pages,
-                      )
-                      const offset = (pageNumber - 1) * pagination.limit
-
-                      return (
-                        <PaginationItem key={i}>
-                          <PaginationLink
-                            isActive={pagination.offset === offset}
-                            onClick={() => setPagination((prev) => ({ ...prev, offset }))}
-                          >
-                            {pageNumber}
-                          </PaginationLink>
-                        </PaginationItem>
-                      )
-                    })}
-
-                    {pagination.pages > 5 && (
+              {pagination.pages > 1 && (
+                <div className="mt-4">
+                  <Pagination>
+                    <PaginationContent>
                       <PaginationItem>
-                        <PaginationEllipsis />
+                        <PaginationPrevious
+                          onClick={() =>
+                            setPagination((prev) => ({
+                              ...prev,
+                              offset: Math.max(0, prev.offset - prev.limit),
+                            }))
+                          }
+                          disabled={pagination.offset === 0}
+                        />
                       </PaginationItem>
-                    )}
 
-                    <PaginationItem>
-                      <PaginationNext
-                        onClick={() =>
-                          setPagination((prev) => ({
-                            ...prev,
-                            offset: Math.min((pagination.pages - 1) * pagination.limit, prev.offset + prev.limit),
-                          }))
-                        }
-                        disabled={pagination.offset + pagination.limit >= pagination.total}
-                      />
-                    </PaginationItem>
-                  </PaginationContent>
-                </Pagination>
-              </div>
+                      {Array.from({ length: Math.min(5, pagination.pages) }, (_, i) => {
+                        const pageNumber = Math.min(
+                          Math.max(1, Math.floor(pagination.offset / pagination.limit) + 1 - 2) + i,
+                          pagination.pages,
+                        )
+                        const offset = (pageNumber - 1) * pagination.limit
+
+                        return (
+                          <PaginationItem key={i}>
+                            <PaginationLink
+                              isActive={pagination.offset === offset}
+                              onClick={() => setPagination((prev) => ({ ...prev, offset }))}
+                            >
+                              {pageNumber}
+                            </PaginationLink>
+                          </PaginationItem>
+                        )
+                      })}
+
+                      {pagination.pages > 5 && (
+                        <PaginationItem>
+                          <PaginationEllipsis />
+                        </PaginationItem>
+                      )}
+
+                      <PaginationItem>
+                        <PaginationNext
+                          onClick={() =>
+                            setPagination((prev) => ({
+                              ...prev,
+                              offset: Math.min((pagination.pages - 1) * pagination.limit, prev.offset + prev.limit),
+                            }))
+                          }
+                          disabled={pagination.offset + pagination.limit >= pagination.total}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
+              )}
             </>
           )}
         </CardContent>
@@ -752,10 +858,10 @@ export default function EdgeGatewaysPage() {
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="manufacturer" className="text-right">
+              <Label htmlFor="manufacturer_id" className="text-right">
                 Manufacturer
               </Label>
-              <Select value={formData.manufacturer} onValueChange={handleManufacturerChange}>
+              <Select value={formData.manufacturer_id} onValueChange={handleManufacturerChange}>
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Select manufacturer" />
                 </SelectTrigger>
@@ -775,15 +881,15 @@ export default function EdgeGatewaysPage() {
               <Select
                 value={formData.model_id}
                 onValueChange={(value) => handleSelectChange("model_id", value)}
-                disabled={!formData.manufacturer}
+                disabled={!formData.manufacturer_id}
               >
                 <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder={formData.manufacturer ? "Select model" : "Select manufacturer first"} />
+                  <SelectValue placeholder={formData.manufacturer_id ? "Select model" : "Select manufacturer first"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {formData.manufacturer &&
-                    modelsByManufacturer[formData.manufacturer]?.map((model) => (
-                      <SelectItem key={model.id} value={model.id.toString()}>
+                  {formData.manufacturer_id &&
+                    modelsByManufacturer[formData.manufacturer_id]?.map((model) => (
+                      <SelectItem key={model.id} value={model.id}>
                         {model.model_name}
                       </SelectItem>
                     ))}
@@ -861,10 +967,10 @@ export default function EdgeGatewaysPage() {
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit_manufacturer" className="text-right">
+              <Label htmlFor="edit_manufacturer_id" className="text-right">
                 Manufacturer
               </Label>
-              <Select value={formData.manufacturer} onValueChange={handleManufacturerChange}>
+              <Select value={formData.manufacturer_id} onValueChange={handleManufacturerChange}>
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Select manufacturer" />
                 </SelectTrigger>
@@ -884,15 +990,15 @@ export default function EdgeGatewaysPage() {
               <Select
                 value={formData.model_id}
                 onValueChange={(value) => handleSelectChange("model_id", value)}
-                disabled={!formData.manufacturer}
+                disabled={!formData.manufacturer_id}
               >
                 <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder={formData.manufacturer ? "Select model" : "Select manufacturer first"} />
+                  <SelectValue placeholder={formData.manufacturer_id ? "Select model" : "Select manufacturer first"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {formData.manufacturer &&
-                    modelsByManufacturer[formData.manufacturer]?.map((model) => (
-                      <SelectItem key={model.id} value={model.id.toString()}>
+                  {formData.manufacturer_id &&
+                    modelsByManufacturer[formData.manufacturer_id]?.map((model) => (
+                      <SelectItem key={model.id} value={model.id}>
                         {model.model_name}
                       </SelectItem>
                     ))}
@@ -936,6 +1042,22 @@ export default function EdgeGatewaysPage() {
                 className="col-span-3"
               />
             </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit_status" className="text-right">
+                Status
+              </Label>
+              <Select value={formData.status} onValueChange={(value) => handleSelectChange("status", value)}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="available">Available</SelectItem>
+                  <SelectItem value="assigned">Assigned</SelectItem>
+                  <SelectItem value="maintenance">Maintenance</SelectItem>
+                  <SelectItem value="decommissioned">Decommissioned</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
@@ -963,7 +1085,7 @@ export default function EdgeGatewaysPage() {
                 <strong>Serial Number:</strong> {currentGateway.serial_number}
               </p>
               <p>
-                <strong>Model:</strong> {currentGateway.model?.manufacturer} {currentGateway.model?.model_name}
+                <strong>Model:</strong> {currentGateway.manufacturer_name} {currentGateway.model_name}
               </p>
               <p>
                 <strong>MAC Address:</strong> {currentGateway.mac_address || "N/A"}
@@ -995,7 +1117,7 @@ export default function EdgeGatewaysPage() {
                   <strong>Gateway:</strong> {currentGateway.serial_number}
                 </p>
                 <p>
-                  <strong>Model:</strong> {currentGateway.model?.manufacturer} {currentGateway.model?.model_name}
+                  <strong>Model:</strong> {currentGateway.manufacturer_name} {currentGateway.model_name}
                 </p>
               </div>
 
@@ -1098,7 +1220,7 @@ export default function EdgeGatewaysPage() {
                   <strong>Gateway:</strong> {currentGateway.serial_number}
                 </p>
                 <p>
-                  <strong>Model:</strong> {currentGateway.model?.manufacturer} {currentGateway.model?.model_name}
+                  <strong>Model:</strong> {currentGateway.manufacturer_name} {currentGateway.model_name}
                 </p>
               </div>
 
@@ -1160,6 +1282,7 @@ export default function EdgeGatewaysPage() {
                   />
                 </div>
 
+                {/* Replace the connectivity checkboxes section */}
                 <div className="space-y-2">
                   <Label>Connectivity</Label>
                   <div className="grid grid-cols-2 gap-2">
@@ -1167,7 +1290,7 @@ export default function EdgeGatewaysPage() {
                       <input
                         type="checkbox"
                         id="ethernet"
-                        checked={specsData.connectivity?.includes("Ethernet")}
+                        checked={Array.isArray(specsData.connectivity) && specsData.connectivity.includes("Ethernet")}
                         onChange={() => handleConnectivityChange("Ethernet")}
                         className="h-4 w-4 rounded border-gray-300"
                       />
@@ -1179,7 +1302,7 @@ export default function EdgeGatewaysPage() {
                       <input
                         type="checkbox"
                         id="wifi"
-                        checked={specsData.connectivity?.includes("WiFi")}
+                        checked={Array.isArray(specsData.connectivity) && specsData.connectivity.includes("WiFi")}
                         onChange={() => handleConnectivityChange("WiFi")}
                         className="h-4 w-4 rounded border-gray-300"
                       />
@@ -1191,7 +1314,7 @@ export default function EdgeGatewaysPage() {
                       <input
                         type="checkbox"
                         id="bluetooth"
-                        checked={specsData.connectivity?.includes("Bluetooth")}
+                        checked={Array.isArray(specsData.connectivity) && specsData.connectivity.includes("Bluetooth")}
                         onChange={() => handleConnectivityChange("Bluetooth")}
                         className="h-4 w-4 rounded border-gray-300"
                       />
@@ -1203,7 +1326,7 @@ export default function EdgeGatewaysPage() {
                       <input
                         type="checkbox"
                         id="cellular"
-                        checked={specsData.connectivity?.includes("Cellular")}
+                        checked={Array.isArray(specsData.connectivity) && specsData.connectivity.includes("Cellular")}
                         onChange={() => handleConnectivityChange("Cellular")}
                         className="h-4 w-4 rounded border-gray-300"
                       />
@@ -1215,7 +1338,7 @@ export default function EdgeGatewaysPage() {
                       <input
                         type="checkbox"
                         id="zigbee"
-                        checked={specsData.connectivity?.includes("Zigbee")}
+                        checked={Array.isArray(specsData.connectivity) && specsData.connectivity.includes("Zigbee")}
                         onChange={() => handleConnectivityChange("Zigbee")}
                         className="h-4 w-4 rounded border-gray-300"
                       />
@@ -1227,7 +1350,7 @@ export default function EdgeGatewaysPage() {
                       <input
                         type="checkbox"
                         id="zwave"
-                        checked={specsData.connectivity?.includes("Z-Wave")}
+                        checked={Array.isArray(specsData.connectivity) && specsData.connectivity.includes("Z-Wave")}
                         onChange={() => handleConnectivityChange("Z-Wave")}
                         className="h-4 w-4 rounded border-gray-300"
                       />
@@ -1275,7 +1398,7 @@ export default function EdgeGatewaysPage() {
                   <strong>Gateway:</strong> {currentGateway.serial_number}
                 </p>
                 <p>
-                  <strong>Model:</strong> {currentGateway.model?.manufacturer} {currentGateway.model?.model_name}
+                  <strong>Model:</strong> {currentGateway.manufacturer_name} {currentGateway.model_name}
                 </p>
               </div>
 
@@ -1399,8 +1522,4 @@ export default function EdgeGatewaysPage() {
     </div>
   )
 }
-
-
-
-
 
