@@ -162,7 +162,8 @@ export default function UsersPage() {
   // Update available facilities when company changes
   useEffect(() => {
     if (selectedCompanyId) {
-      const fetchFacilities = async () => {
+      // Use a timeout to debounce the API call
+      const timeoutId = setTimeout(async () => {
         try {
           console.log(`Fetching facilities for company ID: ${selectedCompanyId}`) // Debug log
           const response = await companiesAPI.getFacilities(selectedCompanyId)
@@ -184,30 +185,33 @@ export default function UsersPage() {
           setAvailableDepartments([])
 
           // Update new user form
-          setNewUser({
-            ...newUser,
+          setNewUser((prev) => ({
+            ...prev,
             company_id: selectedCompanyId,
             facility_id: "",
             department_id: "",
-          })
+          }))
         } catch (error) {
           console.error("Error fetching facilities:", error)
           setAvailableFacilities([]) // Set to empty array on error
         }
-      }
-      fetchFacilities()
+      }, 300) // 300ms debounce
+
+      return () => clearTimeout(timeoutId)
     } else {
       setAvailableFacilities([])
       setSelectedFacilityId("")
       setAvailableDepartments([])
     }
-  }, [selectedCompanyId, newUser])
+  }, [selectedCompanyId]) // Remove newUser from dependencies to prevent loops
 
+  // Update the useEffect for departments to add debouncing and better error handling
   // Update the useEffect for departments to better handle API responses
   // Update available departments when facility changes
   useEffect(() => {
     if (selectedFacilityId && selectedCompanyId) {
-      const fetchDepartments = async () => {
+      // Use a timeout to debounce the API call
+      const timeoutId = setTimeout(async () => {
         try {
           console.log(`Fetching departments for facility ID: ${selectedFacilityId}`) // Debug log
           const response = await companiesAPI.getDepartments(selectedFacilityId)
@@ -227,21 +231,22 @@ export default function UsersPage() {
           setAvailableDepartments(departmentsData || [])
 
           // Update new user form
-          setNewUser({
-            ...newUser,
+          setNewUser((prev) => ({
+            ...prev,
             facility_id: selectedFacilityId,
             department_id: "",
-          })
+          }))
         } catch (error) {
           console.error("Error fetching departments:", error)
           setAvailableDepartments([]) // Set to empty array on error
         }
-      }
-      fetchDepartments()
+      }, 300) // 300ms debounce
+
+      return () => clearTimeout(timeoutId)
     } else {
       setAvailableDepartments([])
     }
-  }, [selectedFacilityId, selectedCompanyId, newUser])
+  }, [selectedFacilityId, selectedCompanyId]) // Remove newUser from dependencies to prevent loops
 
   // Generate a random password
   const generateRandomPassword = () => {
@@ -265,10 +270,10 @@ export default function UsersPage() {
 
   // Handle department selection
   const handleDepartmentChange = (departmentId) => {
-    setNewUser({
-      ...newUser,
+    setNewUser((prev) => ({
+      ...prev,
       department_id: departmentId,
-    })
+    }))
   }
 
   // Handle add user

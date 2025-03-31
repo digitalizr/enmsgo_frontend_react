@@ -2,9 +2,8 @@
 // This file serves as the central point for all API calls to the backend
 
 // Base API URL - should be set from environment variables in production
-const API_BASE_URL = "https://api.enmsgo.com/api"
-//const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"
-
+//const API_BASE_URL = "https://api.enmsgo.com/api"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"
 
 // Helper function for handling API responses
 const handleResponse = async (response) => {
@@ -758,14 +757,36 @@ export const companiesAPI = {
         headers: { ...authHeader(), "Content-Type": "application/json" },
       })
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        console.error("Server error response:", errorData)
-        throw new Error(errorData.message || "Failed to fetch facilities")
+      // Handle rate limiting
+      if (response.status === 429) {
+        console.warn("Rate limit exceeded when fetching facilities. Please try again later.")
+        return { data: [] }
       }
 
-      const data = await response.json()
-      console.log("Raw facilities API response:", data)
+      if (!response.ok) {
+        // Try to parse as JSON, but handle case where it's not JSON
+        let errorMessage = "Failed to fetch facilities"
+        try {
+          const errorData = await response.json()
+          console.error("Server error response:", errorData)
+          errorMessage = errorData.message || errorMessage
+        } catch (e) {
+          console.error("Error parsing error response:", e)
+          const errorText = await response.text()
+          errorMessage = errorText || errorMessage
+        }
+        throw new Error(errorMessage)
+      }
+
+      // Try to parse the response as JSON
+      let data
+      try {
+        data = await response.json()
+        console.log("Raw facilities API response:", data)
+      } catch (e) {
+        console.error("Error parsing JSON response:", e)
+        return { data: [] }
+      }
 
       // Normalize the response format
       if (Array.isArray(data)) {
@@ -778,7 +799,8 @@ export const companiesAPI = {
       }
     } catch (error) {
       console.error("Error in companiesAPI.getFacilities:", error)
-      throw error
+      // Return empty data instead of throwing to prevent UI errors
+      return { data: [] }
     }
   },
 
@@ -1076,14 +1098,36 @@ export const companiesAPI = {
         headers: { ...authHeader(), "Content-Type": "application/json" },
       })
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        console.error("Server error response:", errorData)
-        throw new Error(errorData.message || "Failed to fetch departments")
+      // Handle rate limiting
+      if (response.status === 429) {
+        console.warn("Rate limit exceeded when fetching departments. Please try again later.")
+        return { data: [] }
       }
 
-      const data = await response.json()
-      console.log("Raw departments API response:", data)
+      if (!response.ok) {
+        // Try to parse as JSON, but handle case where it's not JSON
+        let errorMessage = "Failed to fetch departments"
+        try {
+          const errorData = await response.json()
+          console.error("Server error response:", errorData)
+          errorMessage = errorData.message || errorMessage
+        } catch (e) {
+          console.error("Error parsing error response:", e)
+          const errorText = await response.text()
+          errorMessage = errorText || errorMessage
+        }
+        throw new Error(errorMessage)
+      }
+
+      // Try to parse the response as JSON
+      let data
+      try {
+        data = await response.json()
+        console.log("Raw departments API response:", data)
+      } catch (e) {
+        console.error("Error parsing JSON response:", e)
+        return { data: [] }
+      }
 
       // Normalize the response format
       if (Array.isArray(data)) {
@@ -1096,7 +1140,8 @@ export const companiesAPI = {
       }
     } catch (error) {
       console.error("Error in companiesAPI.getDepartments:", error)
-      throw error
+      // Return empty data instead of throwing to prevent UI errors
+      return { data: [] }
     }
   },
 }
@@ -1388,7 +1433,6 @@ export const billingAPI = {
     const response = await fetch(`${API_BASE_URL}/billing/invoices`, {
       method: "POST",
       headers: { ...authHeader(), "Content-Type": "application/json" },
-      body: JSON.stringify(data),
     })
     return handleResponse(response)
   },
@@ -1397,7 +1441,6 @@ export const billingAPI = {
     const response = await fetch(`${API_BASE_URL}/billing/invoices/${id}`, {
       method: "PUT",
       headers: { ...authHeader(), "Content-Type": "application/json" },
-      body: JSON.stringify(data),
     })
     return handleResponse(response)
   },
