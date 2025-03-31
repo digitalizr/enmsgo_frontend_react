@@ -2,20 +2,36 @@
 // This file serves as the central point for all API calls to the backend
 
 // Base API URL - should be set from environment variables in production
-//const API_BASE_URL = "https://api.enmsgo.com/api"
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"
 
 // Helper function for handling API responses
 const handleResponse = async (response) => {
-  const data = await response.json()
+  try {
+    const contentType = response.headers.get("content-type")
+    if (contentType && contentType.includes("application/json")) {
+      const data = await response.json()
 
-  if (!response.ok) {
-    const error = (data && data.message) || response.statusText
-    console.error("API Error Response:", data) // Debugging log
-    return Promise.reject(error)
+      if (!response.ok) {
+        console.error("API Error Response:", data)
+        const error = (data && (data.message || data.error)) || response.statusText
+        return Promise.reject(error)
+      }
+
+      return data
+    } else {
+      // Handle non-JSON responses
+      const text = await response.text()
+      if (!response.ok) {
+        console.error("API Error Response (non-JSON):", text)
+        return Promise.reject(text || response.statusText)
+      }
+
+      return { message: text }
+    }
+  } catch (error) {
+    console.error("Error parsing API response:", error)
+    return Promise.reject("Failed to parse API response")
   }
-
-  return data
 }
 
 // Helper function to get auth header
@@ -39,19 +55,12 @@ const apiRequest = async (endpoint, method = "GET", body = null) => {
       body: body ? JSON.stringify(body) : null,
     }
 
-    console.log(`Making API request to ${url} with options:`, options) // Debugging log
+    console.log(`Making API request to ${url} with options:`, options)
 
     const response = await fetch(url, options)
-
-    if (!response.ok) {
-      const errorData = await response.json()
-      console.error(`API request failed for ${endpoint}:`, errorData) // Debugging log
-      throw new Error(errorData.message || `API request failed with status ${response.status}`)
-    }
-
-    return await response.json()
+    return await handleResponse(response)
   } catch (error) {
-    console.error(`Error in apiRequest for ${endpoint}:`, error) // Debugging log
+    console.error(`Error in apiRequest for ${endpoint}:`, error)
     throw error
   }
 }
@@ -1191,67 +1200,321 @@ export const deviceModelsAPI = {
 // Users API
 export const usersAPI = {
   getAll: async () => {
-    const response = await fetch(`${API_BASE_URL}/users`, {
-      method: "GET",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-    })
-    return handleResponse(response)
+    try {
+      console.log("Fetching all users")
+      const response = await fetch(`${API_BASE_URL}/users`, {
+        method: "GET",
+        headers: { ...authHeader(), "Content-Type": "application/json" },
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error("Server error response:", errorData)
+        throw new Error(errorData.message || errorData.error || "Failed to fetch users")
+      }
+
+      const data = await response.json()
+      console.log("Users API response:", data)
+      return data
+    } catch (error) {
+      console.error("Error in usersAPI.getAll:", error)
+      throw error
+    }
   },
+
+  getRoles: async () => {
+    try {
+      console.log("Fetching roles")
+      const response = await fetch(`${API_BASE_URL}/roles`, {
+        method: "GET",
+        headers: { ...authHeader(), "Content-Type": "application/json" },
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error("Server error response:", errorData)
+        throw new Error(errorData.message || errorData.error || "Failed to fetch roles")
+      }
+
+      const data = await response.json()
+      console.log("Roles API response:", data)
+      return data
+    } catch (error) {
+      console.error("Error in usersAPI.getRoles:", error)
+      throw error
+    }
+  },
+
   getById: async (id) => {
-    const response = await fetch(`${API_BASE_URL}/users/${id}`, {
-      method: "GET",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-    })
-    return handleResponse(response)
+    try {
+      console.log(`Fetching user with id: ${id}`)
+      const response = await fetch(`${API_BASE_URL}/users/${id}`, {
+        method: "GET",
+        headers: { ...authHeader(), "Content-Type": "application/json" },
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error("Server error response:", errorData)
+        throw new Error(errorData.message || errorData.error || "Failed to fetch user")
+      }
+
+      const data = await response.json()
+      console.log("User API response:", data)
+      return data
+    } catch (error) {
+      console.error("Error in usersAPI.getById:", error)
+      throw error
+    }
   },
+
   create: async (data) => {
-    const response = await fetch(`${API_BASE_URL}/users`, {
-      method: "POST",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    })
-    return handleResponse(response)
+    try {
+      console.log("Creating user with data:", data)
+      const response = await fetch(`${API_BASE_URL}/users`, {
+        method: "POST",
+        headers: { ...authHeader(), "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error("Server error response text:", errorText)
+
+        let errorData
+        try {
+          errorData = JSON.parse(errorText)
+        } catch (e) {
+          console.error("Error parsing error response:", e)
+          throw new Error(`Failed to create user: ${errorText}`)
+        }
+
+        throw new Error(errorData.message || errorData.error || "Failed to create user")
+      }
+
+      const result = await response.json()
+      console.log("User created:", result)
+      return result
+    } catch (error) {
+      console.error("Error in usersAPI.create:", error)
+      throw error
+    }
   },
+
   update: async (id, data) => {
-    const response = await fetch(`${API_BASE_URL}/users/${id}`, {
-      method: "PUT",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    })
-    return handleResponse(response)
+    try {
+      console.log(`Updating user with id: ${id}`)
+      console.log("Update data:", data)
+
+      const token = authAPI.getToken()
+      if (!token) {
+        throw new Error("Authentication required")
+      }
+
+      const response = await fetch(`${API_BASE_URL}/users/${id}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error("Server error response text:", errorText)
+
+        let errorData
+        try {
+          errorData = JSON.parse(errorText)
+        } catch (e) {
+          console.error("Error parsing error response:", e)
+          throw new Error(`Failed to update user: ${errorText}`)
+        }
+
+        throw new Error(errorData.message || errorData.error || "Failed to update user")
+      }
+
+      const result = await response.json()
+      console.log("User updated:", result)
+      return result
+    } catch (error) {
+      console.error("Error in usersAPI.update:", error)
+      throw error
+    }
   },
+
   delete: async (id) => {
-    const response = await fetch(`${API_BASE_URL}/users/${id}`, {
-      method: "DELETE",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-    })
-    return handleResponse(response)
+    try {
+      console.log(`Deleting user with id: ${id}`)
+      const response = await fetch(`${API_BASE_URL}/users/${id}`, {
+        method: "DELETE",
+        headers: { ...authHeader(), "Content-Type": "application/json" },
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error("Server error response:", errorData)
+        throw new Error(errorData.message || errorData.error || "Failed to delete user")
+      }
+
+      const result = await response.json()
+      console.log("User deleted:", result)
+      return result
+    } catch (error) {
+      console.error("Error in usersAPI.delete:", error)
+      throw error
+    }
   },
+
   resetPassword: async (id) => {
-    const response = await fetch(`${API_BASE_URL}/users/${id}/reset-password`, {
-      method: "POST",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-    })
-    return handleResponse(response)
+    try {
+      console.log(`Resetting password for user with id: ${id}`)
+      const response = await fetch(`${API_BASE_URL}/users/${id}/reset-password`, {
+        method: "POST",
+        headers: { ...authHeader(), "Content-Type": "application/json" },
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error("Server error response:", errorData)
+        throw new Error(errorData.message || errorData.error || "Failed to reset password")
+      }
+
+      const result = await response.json()
+      console.log("Password reset:", result)
+      return result
+    } catch (error) {
+      console.error("Error in usersAPI.resetPassword:", error)
+      throw error
+    }
   },
+
   manualResetPassword: async (id, newPassword) => {
-    const response = await fetch(`${API_BASE_URL}/users/${id}/reset-password`, {
-      method: "POST",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-      body: JSON.stringify({ newPassword }),
-    })
-    return handleResponse(response)
+    try {
+      console.log(`Manually resetting password for user with id: ${id}`)
+      const response = await fetch(`${API_BASE_URL}/users/${id}/reset-password`, {
+        method: "POST",
+        headers: { ...authHeader(), "Content-Type": "application/json" },
+        body: JSON.stringify({ newPassword }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error("Server error response:", errorData)
+        throw new Error(errorData.message || errorData.error || "Failed to reset password")
+      }
+
+      const result = await response.json()
+      console.log("Password manually reset:", result)
+      return result
+    } catch (error) {
+      console.error("Error in usersAPI.manualResetPassword:", error)
+      throw error
+    }
+  },
+
+  // User-Company relationship methods
+  createUserCompanyRelationship: async (data) => {
+    try {
+      console.log("Creating user-company relationship with data:", data)
+      const response = await fetch(`${API_BASE_URL}/user-companies`, {
+        method: "POST",
+        headers: { ...authHeader(), "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error("Server error response text:", errorText)
+
+        let errorData
+        try {
+          errorData = JSON.parse(errorText)
+        } catch (e) {
+          console.error("Error parsing error response:", e)
+          throw new Error(`Failed to create user-company relationship: ${errorText}`)
+        }
+
+        throw new Error(errorData.message || errorData.error || "Failed to create user-company relationship")
+      }
+
+      const result = await response.json()
+      console.log("User-company relationship created:", result)
+      return result
+    } catch (error) {
+      console.error("Error in usersAPI.createUserCompanyRelationship:", error)
+      throw error
+    }
+  },
+
+  getUserCompanyRelationships: async (userId) => {
+    try {
+      console.log(`Fetching user-company relationships for user id: ${userId}`)
+      const response = await fetch(`${API_BASE_URL}/user-companies/${userId}`, {
+        method: "GET",
+        headers: { ...authHeader(), "Content-Type": "application/json" },
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error("Server error response:", errorData)
+        throw new Error(errorData.message || errorData.error || "Failed to fetch user-company relationships")
+      }
+
+      const result = await response.json()
+      console.log("User-company relationships:", result)
+      return result
+    } catch (error) {
+      console.error("Error in usersAPI.getUserCompanyRelationships:", error)
+      throw error
+    }
+  },
+
+  deleteUserCompanyRelationships: async (userId) => {
+    try {
+      console.log(`Deleting user-company relationships for user id: ${userId}`)
+      const response = await fetch(`${API_BASE_URL}/user-companies/${userId}`, {
+        method: "DELETE",
+        headers: { ...authHeader(), "Content-Type": "application/json" },
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error("Server error response:", errorData)
+        throw new Error(errorData.message || errorData.error || "Failed to delete user-company relationships")
+      }
+
+      console.log("User-company relationships deleted")
+      return { success: true }
+    } catch (error) {
+      console.error("Error in usersAPI.deleteUserCompanyRelationships:", error)
+      throw error
+    }
   },
 }
 
 // Assignments API
 export const assignmentsAPI = {
   getAll: async () => {
-    const response = await fetch(`${API_BASE_URL}/assignments`, {
-      method: "GET",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-    })
-    return handleResponse(response)
+    try {
+      const response = await fetch(`${API_BASE_URL}/assignments`, {
+        method: "GET",
+        headers: { ...authHeader(), "Content-Type": "application/json" },
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Failed to fetch assignments")
+      }
+
+      const data = await response.json()
+      // Ensure we return a consistent structure
+      return { data: Array.isArray(data) ? data : data.data || [] }
+    } catch (error) {
+      console.error("Error in assignmentsAPI.getAll:", error)
+      throw error
+    }
   },
   getById: async (id) => {
     const response = await fetch(`${API_BASE_URL}/assignments/${id}`, {
@@ -1284,36 +1547,111 @@ export const assignmentsAPI = {
     return handleResponse(response)
   },
   assignEdgeGateway: async (userId, gatewayId) => {
-    const response = await fetch(`${API_BASE_URL}/assignments/assign-edge-gateway`, {
-      method: "POST",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, gatewayId }),
-    })
-    return handleResponse(response)
+    try {
+      console.log("Assigning edge gateway:", { userId, gatewayId })
+
+      // First, get the user's company information
+      const userResponse = await fetch(`${API_BASE_URL}/user-companies/${userId}`, {
+        method: "GET",
+        headers: { ...authHeader(), "Content-Type": "application/json" },
+      })
+
+      if (!userResponse.ok) {
+        const errorData = await userResponse.json()
+        throw new Error(errorData.message || "Failed to get user company information")
+      }
+
+      const userCompanyData = await userResponse.json()
+
+      if (!userCompanyData.data || userCompanyData.data.length === 0) {
+        throw new Error("User is not associated with any company")
+      }
+
+      // Use the primary company or the first one in the list
+      const primaryCompany = userCompanyData.data.find((rel) => rel.is_primary) || userCompanyData.data[0]
+
+      // Now create the assignment with company_id instead of user_id
+      const response = await fetch(`${API_BASE_URL}/assignments/assign-edge-gateway`, {
+        method: "POST",
+        headers: { ...authHeader(), "Content-Type": "application/json" },
+        body: JSON.stringify({
+          companyId: primaryCompany.company.id,
+          facilityId: primaryCompany.facility?.id || null,
+          departmentId: primaryCompany.department?.id || null,
+          gatewayId,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Failed to assign edge gateway")
+      }
+
+      return await response.json()
+    } catch (error) {
+      console.error("Error in assignmentsAPI.assignEdgeGateway:", error)
+      throw error
+    }
   },
   assignSmartMeters: async (gatewayId, meterIds) => {
-    const response = await fetch(`${API_BASE_URL}/assignments/assign-smart-meters`, {
-      method: "POST",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-      body: JSON.stringify({ gatewayId, meterIds }),
-    })
-    return handleResponse(response)
+    try {
+      console.log("Assigning smart meters:", { gatewayId, meterIds })
+      const response = await fetch(`${API_BASE_URL}/assignments/assign-smart-meters`, {
+        method: "POST",
+        headers: { ...authHeader(), "Content-Type": "application/json" },
+        body: JSON.stringify({ gatewayId, meterIds }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Failed to assign smart meters")
+      }
+
+      return await response.json()
+    } catch (error) {
+      console.error("Error in assignmentsAPI.assignSmartMeters:", error)
+      throw error
+    }
   },
   removeEdgeGateway: async (userId, gatewayId) => {
-    const response = await fetch(`${API_BASE_URL}/assignments/remove-edge-gateway`, {
-      method: "POST",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, gatewayId }),
-    })
-    return handleResponse(response)
+    try {
+      console.log("Removing edge gateway:", { userId, gatewayId })
+      const response = await fetch(`${API_BASE_URL}/assignments/remove-edge-gateway`, {
+        method: "POST",
+        headers: { ...authHeader(), "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, gatewayId }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Failed to remove edge gateway")
+      }
+
+      return await response.json()
+    } catch (error) {
+      console.error("Error in assignmentsAPI.removeEdgeGateway:", error)
+      throw error
+    }
   },
   removeSmartMeter: async (gatewayId, meterId) => {
-    const response = await fetch(`${API_BASE_URL}/assignments/remove-smart-meter`, {
-      method: "POST",
-      headers: { ...authHeader(), "Content-Type": "application/json" },
-      body: JSON.stringify({ gatewayId, meterId }),
-    })
-    return handleResponse(response)
+    try {
+      console.log("Removing smart meter:", { gatewayId, meterId })
+      const response = await fetch(`${API_BASE_URL}/assignments/remove-smart-meter`, {
+        method: "POST",
+        headers: { ...authHeader(), "Content-Type": "application/json" },
+        body: JSON.stringify({ gatewayId, meterId }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Failed to remove smart meter")
+      }
+
+      return await response.json()
+    } catch (error) {
+      console.error("Error in assignmentsAPI.removeSmartMeter:", error)
+      throw error
+    }
   },
 }
 

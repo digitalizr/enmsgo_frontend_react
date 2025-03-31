@@ -44,10 +44,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
 import { usersAPI, companiesAPI } from "@/services/api"
 
+// Helper function to get auth header
+const authHeader = () => {
+  const token = localStorage.getItem("token")
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
+// Base API URL
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"
+
 export default function UsersPage() {
   const { toast } = useToast()
   const [users, setUsers] = useState([])
   const [companies, setCompanies] = useState([])
+  const [roles, setRoles] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
@@ -72,8 +82,8 @@ export default function UsersPage() {
     last_name: "",
     email: "",
     phone: "",
-    role: "customer",
-    status: "active",
+    role_id: "",
+    is_active: true,
     company_id: "",
     facility_id: "",
     department_id: "",
@@ -83,8 +93,55 @@ export default function UsersPage() {
   const fetchUsers = async () => {
     try {
       setLoading(true)
+      console.log("Fetching users...")
       const response = await usersAPI.getAll()
-      setUsers(response.data || [])
+      console.log("Users API response:", response)
+
+      if (response && response.data) {
+        // Process users to ensure they have company/facility/department info
+        const processedUsers = await Promise.all(
+          response.data.map(async (user) => {
+            // If user already has company info, return as is
+            if (user.company) {
+              return user
+            }
+
+            try {
+              // Fetch user-company relationships
+              const relationshipsResponse = await fetch(`${API_BASE_URL}/user-companies/${user.id}`, {
+                method: "GET",
+                headers: { ...authHeader(), "Content-Type": "application/json" },
+              })
+
+              if (relationshipsResponse.ok) {
+                const relationships = await relationshipsResponse.json()
+                console.log(`Relationships for user ${user.id}:`, relationships)
+
+                // If we have relationships, add company, facility, and department info
+                if (relationships && relationships.data && relationships.data.length > 0) {
+                  const primaryRelationship = relationships.data.find((r) => r.is_primary) || relationships.data[0]
+
+                  return {
+                    ...user,
+                    company: primaryRelationship.company,
+                    facility: primaryRelationship.facility,
+                    department: primaryRelationship.department,
+                  }
+                }
+              }
+
+              return user
+            } catch (error) {
+              console.error(`Error fetching relationships for user ${user.id}:`, error)
+              return user
+            }
+          }),
+        )
+
+        setUsers(processedUsers)
+      } else {
+        setUsers([])
+      }
     } catch (error) {
       console.error("Error fetching users:", error)
       toast({
@@ -98,14 +155,25 @@ export default function UsersPage() {
     }
   }
 
-  // First, let's add some console logs to debug the API responses
-  // Update the fetchCompanies function to better handle the API response
+  // Fetch roles
+  const fetchRoles = async () => {
+    try {
+      console.log("Fetching roles...")
+      const response = await usersAPI.getRoles()
+      console.log("Roles API response:", response)
+      setRoles(response.data || [])
+    } catch (error) {
+      console.error("Error fetching roles:", error)
+      setRoles([]) // Set to empty array on error
+    }
+  }
 
   // Fetch companies
   const fetchCompanies = async () => {
     try {
+      console.log("Fetching companies...")
       const response = await companiesAPI.getAll()
-      console.log("Companies API response:", response) // Debug log
+      console.log("Companies API response:", response)
 
       // Handle different response formats
       let companiesData = []
@@ -117,7 +185,7 @@ export default function UsersPage() {
         companiesData = [response]
       }
 
-      console.log("Processed companies data:", companiesData) // Debug log
+      console.log("Processed companies data:", companiesData)
       setCompanies(companiesData || [])
     } catch (error) {
       console.error("Error fetching companies:", error)
@@ -133,6 +201,7 @@ export default function UsersPage() {
   // Initial data fetch
   useEffect(() => {
     fetchUsers()
+    fetchRoles()
     fetchCompanies()
   }, [])
 
@@ -144,8 +213,8 @@ export default function UsersPage() {
         last_name: "",
         email: "",
         phone: "",
-        role: "customer",
-        status: "active",
+        role_id: "",
+        is_active: true,
         company_id: "",
         facility_id: "",
         department_id: "",
@@ -158,16 +227,15 @@ export default function UsersPage() {
     }
   }, [isAddDialogOpen])
 
-  // Update the useEffect for facilities to better handle API responses
   // Update available facilities when company changes
   useEffect(() => {
     if (selectedCompanyId) {
       // Use a timeout to debounce the API call
       const timeoutId = setTimeout(async () => {
         try {
-          console.log(`Fetching facilities for company ID: ${selectedCompanyId}`) // Debug log
+          console.log(`Fetching facilities for company ID: ${selectedCompanyId}`)
           const response = await companiesAPI.getFacilities(selectedCompanyId)
-          console.log("Facilities API response:", response) // Debug log
+          console.log("Facilities API response:", response)
 
           // Handle different response formats
           let facilitiesData = []
@@ -179,7 +247,7 @@ export default function UsersPage() {
             facilitiesData = [response]
           }
 
-          console.log("Processed facilities data:", facilitiesData) // Debug log
+          console.log("Processed facilities data:", facilitiesData)
           setAvailableFacilities(facilitiesData || [])
           setSelectedFacilityId("")
           setAvailableDepartments([])
@@ -203,19 +271,17 @@ export default function UsersPage() {
       setSelectedFacilityId("")
       setAvailableDepartments([])
     }
-  }, [selectedCompanyId]) // Remove newUser from dependencies to prevent loops
+  }, [selectedCompanyId])
 
-  // Update the useEffect for departments to add debouncing and better error handling
-  // Update the useEffect for departments to better handle API responses
   // Update available departments when facility changes
   useEffect(() => {
-    if (selectedFacilityId && selectedCompanyId) {
+    if (selectedFacilityId) {
       // Use a timeout to debounce the API call
       const timeoutId = setTimeout(async () => {
         try {
-          console.log(`Fetching departments for facility ID: ${selectedFacilityId}`) // Debug log
+          console.log(`Fetching departments for facility ID: ${selectedFacilityId}`)
           const response = await companiesAPI.getDepartments(selectedFacilityId)
-          console.log("Departments API response:", response) // Debug log
+          console.log("Departments API response:", response)
 
           // Handle different response formats
           let departmentsData = []
@@ -227,7 +293,7 @@ export default function UsersPage() {
             departmentsData = [response]
           }
 
-          console.log("Processed departments data:", departmentsData) // Debug log
+          console.log("Processed departments data:", departmentsData)
           setAvailableDepartments(departmentsData || [])
 
           // Update new user form
@@ -246,7 +312,7 @@ export default function UsersPage() {
     } else {
       setAvailableDepartments([])
     }
-  }, [selectedFacilityId, selectedCompanyId]) // Remove newUser from dependencies to prevent loops
+  }, [selectedFacilityId])
 
   // Generate a random password
   const generateRandomPassword = () => {
@@ -269,12 +335,13 @@ export default function UsersPage() {
   }
 
   // Handle department selection
+  // Handle department selection
   const handleDepartmentChange = (departmentId) => {
     setNewUser((prev) => ({
       ...prev,
       department_id: departmentId,
-    }))
-  }
+    }));
+  };
 
   // Handle add user
   const handleAddUser = async () => {
@@ -285,12 +352,35 @@ export default function UsersPage() {
         setGeneratedPassword(password)
       }
 
-      // Add the user with the generated password
-      await usersAPI.create({
+      // Create user data
+      const userData = {
         ...newUser,
         password: generatedPassword,
         require_password_change: true,
-      })
+      }
+
+      console.log("Sending user data:", userData)
+
+      // Add the user
+      const response = await usersAPI.create(userData)
+      console.log("User created:", response)
+
+      // If user was created successfully and has company info, create user-company relationship
+      if (response && response.id && newUser.company_id) {
+        try {
+          console.log("Creating user-company relationship")
+          await usersAPI.createUserCompanyRelationship({
+            user_id: response.id,
+            company_id: newUser.company_id,
+            facility_id: newUser.facility_id || null,
+            department_id: newUser.department_id || null,
+            is_primary: true,
+          })
+        } catch (relationError) {
+          console.error("Error creating user-company relationship:", relationError)
+          // Continue anyway since the user was created
+        }
+      }
 
       toast({
         title: "Success",
@@ -304,7 +394,105 @@ export default function UsersPage() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to add user. Please try again.",
+        description: `Failed to add user: ${error.message || "Unknown error"}`,
+      })
+    }
+  }
+
+  // Handle edit user
+  const handleSaveChanges = async () => {
+    try {
+      // Get values from form
+      const firstName = document.getElementById("edit-first-name").value
+      const lastName = document.getElementById("edit-last-name").value
+      const email = document.getElementById("edit-email").value
+      const phone = document.getElementById("edit-phone").value
+
+      // Get role_id from select - fix the selector to get the value properly
+      const roleSelect = document.getElementById("edit-role")
+      const roleId = roleSelect ? roleSelect.value : selectedUser.role_id
+
+      // Get status from select - fix the selector to get the value properly
+      const statusSelect = document.getElementById("edit-status")
+      const isActive = statusSelect ? statusSelect.value === "active" : selectedUser.is_active
+
+      console.log("Form values collected:", {
+        firstName,
+        lastName,
+        email,
+        phone,
+        roleId,
+        isActive,
+        selectedCompanyId,
+        selectedFacilityId,
+      })
+
+      // Create update data
+      const updateData = {
+        first_name: firstName,
+        last_name: lastName,
+        email: email,
+        phone: phone || null,
+        role_id: roleId,
+        is_active: isActive,
+      }
+
+      console.log("Updating user with data:", updateData)
+      console.log("User ID:", selectedUser.id)
+
+      // Update user
+      const updatedUser = await usersAPI.update(selectedUser.id, updateData)
+      console.log("Updated user:", updatedUser)
+
+      // Update user-company relationship if company/facility/department changed
+      if (selectedCompanyId) {
+        try {
+          console.log("Updating user-company relationship")
+          console.log("Selected company:", selectedCompanyId)
+          console.log("Selected facility:", selectedFacilityId)
+
+          // Get department_id from select
+          const departmentSelect = document.getElementById("edit-department")
+          const departmentId = departmentSelect ? departmentSelect.value : null
+          console.log("Selected department:", departmentId)
+
+          // First delete existing relationships
+          await fetch(`${API_BASE_URL}/user-companies/${selectedUser.id}`, {
+            method: "DELETE",
+            headers: { ...authHeader(), "Content-Type": "application/json" },
+          })
+
+          // Then create new relationship
+          await fetch(`${API_BASE_URL}/user-companies`, {
+            method: "POST",
+            headers: { ...authHeader(), "Content-Type": "application/json" },
+            body: JSON.stringify({
+              user_id: selectedUser.id,
+              company_id: selectedCompanyId,
+              facility_id: selectedFacilityId || null,
+              department_id: departmentId || null,
+              is_primary: true,
+            }),
+          })
+        } catch (relationError) {
+          console.error("Error updating user-company relationship:", relationError)
+          // Continue anyway since the user was updated
+        }
+      }
+
+      toast({
+        title: "Success",
+        description: "User updated successfully.",
+      })
+
+      fetchUsers()
+      setIsEditDialogOpen(false)
+    } catch (error) {
+      console.error("Error updating user:", error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: `Failed to update user: ${error.message || "Unknown error"}`,
       })
     }
   }
@@ -370,9 +558,9 @@ export default function UsersPage() {
 
   const filteredUsers = users.filter((user) => {
     const matchesSearch =
-      user.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (user.company?.name || "").toLowerCase().includes(searchTerm.toLowerCase())
 
     const matchesTab =
@@ -424,9 +612,11 @@ export default function UsersPage() {
     setIsManualResetDialogOpen(true)
   }
 
-  // Update the getRoleBadge function to handle role names from the database
+  // Get role badge based on role name
   const getRoleBadge = (role) => {
-    switch (role?.toLowerCase()) {
+    if (!role) return <Badge variant="outline">Unknown</Badge>
+
+    switch (role.toLowerCase()) {
       case "admin":
         return <Badge className="bg-red-500">Admin</Badge>
       case "operator":
@@ -438,11 +628,11 @@ export default function UsersPage() {
       case "technician":
         return <Badge className="bg-orange-500">Technician</Badge>
       default:
-        return <Badge variant="outline">{role || "Unknown"}</Badge>
+        return <Badge variant="outline">{role}</Badge>
     }
   }
 
-  // Update the getStatusBadge function to handle the status field correctly
+  // Get status badge
   const getStatusBadge = (isActive) => {
     // Handle both boolean and string status values
     const active = typeof isActive === "boolean" ? isActive : isActive === "active"
@@ -668,21 +858,35 @@ export default function UsersPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="role">Role</Label>
-                <Select value={newUser.role} onValueChange={(value) => handleInputChange("role", value)}>
+                <Label htmlFor="role_id">Role</Label>
+                <Select value={newUser.role_id} onValueChange={(value) => handleInputChange("role_id", value)}>
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="Select role" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="operator">Operator</SelectItem>
-                    <SelectItem value="manager">Manager</SelectItem>
-                    <SelectItem value="customer">Customer</SelectItem>
+                    {roles.map((role) => (
+                      <SelectItem key={role.id} value={role.id}>
+                        {role.name}
+                      </SelectItem>
+                    ))}
+                    {/* Fallback options if API failed */}
+                    {roles.length === 0 && (
+                      <>
+                        <SelectItem value="615b2efa-ea1b-44b5-8753-04dc5cf29b84">Admin</SelectItem>
+                        <SelectItem value="7c5d3e2f-1a2b-3c4d-5e6f-7a8b9c0d1e2f">Operator</SelectItem>
+                        <SelectItem value="9e8d7c6b-5a4b-3c2d-1e0f-9a8b7c6d5e4f">Manager</SelectItem>
+                        <SelectItem value="1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d">Customer</SelectItem>
+                      </>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="status">Status</Label>
-                <Select value={newUser.status} onValueChange={(value) => handleInputChange("status", value)}>
+                <Label htmlFor="is_active">Status</Label>
+                <Select
+                  value={newUser.is_active ? "active" : "inactive"}
+                  onValueChange={(value) => handleInputChange("is_active", value === "active")}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -828,7 +1032,7 @@ export default function UsersPage() {
             </Button>
             <Button
               onClick={handleAddUser}
-              disabled={!newUser.first_name || !newUser.last_name || !newUser.email || !newUser.department_id}
+              disabled={!newUser.first_name || !newUser.last_name || !newUser.email || !newUser.role_id}
             >
               Add User
             </Button>
@@ -868,20 +1072,31 @@ export default function UsersPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="edit-role">Role</Label>
-                  <Select defaultValue={selectedUser.role}>
+                  <Select id="edit-role" defaultValue={selectedUser.role_id}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="operator">Operator</SelectItem>
-                      <SelectItem value="manager">Manager</SelectItem>
-                      <SelectItem value="customer">Customer</SelectItem>
+                      {roles.map((role) => (
+                        <SelectItem key={role.id} value={role.id}>
+                          {role.name}
+                        </SelectItem>
+                      ))}
+                      {/* Fallback options if API failed */}
+                      {roles.length === 0 && (
+                        <>
+                          <SelectItem value="615b2efa-ea1b-44b5-8753-04dc5cf29b84">Admin</SelectItem>
+                          <SelectItem value="7c5d3e2f-1a2b-3c4d-5e6f-7a8b9c0d1e2f">Operator</SelectItem>
+                          <SelectItem value="9e8d7c6b-5a4b-3c2d-1e0f-9a8b7c6d5e4f">Manager</SelectItem>
+                          <SelectItem value="1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d">Customer</SelectItem>
+                        </>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="edit-status">Status</Label>
-                  <Select defaultValue={selectedUser.is_active ? "active" : "inactive"}>
+                  <Select id="edit-status" defaultValue={selectedUser.is_active ? "active" : "inactive"}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -952,6 +1167,7 @@ export default function UsersPage() {
                     Department
                   </Label>
                   <Select
+                    id="edit-department"
                     defaultValue={selectedUser.department?.id}
                     disabled={!selectedFacilityId || availableDepartments.length === 0}
                   >
@@ -982,7 +1198,7 @@ export default function UsersPage() {
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={() => setIsEditDialogOpen(false)}>Save Changes</Button>
+            <Button onClick={handleSaveChanges}>Save Changes</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

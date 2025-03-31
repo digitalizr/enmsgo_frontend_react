@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react"
 import {
-  Network,
   Plus,
   Search,
   CircuitBoard,
@@ -11,9 +10,10 @@ import {
   Building,
   Trash2,
   CheckCircle,
-  ChevronDown,
-  ChevronRight,
   Loader2,
+  UserCircle,
+  Building2,
+  LayoutGrid,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -30,9 +30,10 @@ import {
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
 import { assignmentsAPI, usersAPI, edgeGatewaysAPI, smartMetersAPI } from "@/services/api"
 
@@ -42,21 +43,30 @@ export default function AssignmentsPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedUser, setSelectedUser] = useState(null)
   const [selectedEdgeGateway, setSelectedEdgeGateway] = useState(null)
+  const [selectedSmartMeter, setSelectedSmartMeter] = useState(null)
   const [isAssignEdgeGatewayOpen, setIsAssignEdgeGatewayOpen] = useState(false)
   const [isAssignSmartMeterOpen, setIsAssignSmartMeterOpen] = useState(false)
+  const [isAssignSmartMeterDirectOpen, setIsAssignSmartMeterDirectOpen] = useState(false)
   const [selectedSmartMeters, setSelectedSmartMeters] = useState([])
   const [assignments, setAssignments] = useState([])
   const [expandedUsers, setExpandedUsers] = useState([])
   const [expandedGateways, setExpandedGateways] = useState([])
   const [users, setUsers] = useState([])
+  const [userCompanies, setUserCompanies] = useState({})
   const [availableEdgeGateways, setAvailableEdgeGateways] = useState([])
   const [availableSmartMeters, setAvailableSmartMeters] = useState([])
+  const [activeTab, setActiveTab] = useState("users")
 
   // Fetch users from the API
   const fetchUsers = async () => {
     try {
       const response = await usersAPI.getAll()
-      setUsers(response.data || [])
+      setUsers(response.data)
+
+      // Pre-fetch company relationships for all users
+      for (const user of response.data) {
+        fetchUserCompanies(user.id)
+      }
     } catch (error) {
       console.error("Error fetching users:", error)
       toast({
@@ -67,11 +77,24 @@ export default function AssignmentsPage() {
     }
   }
 
+  // Fetch user companies
+  const fetchUserCompanies = async (userId) => {
+    try {
+      const response = await usersAPI.getUserCompanyRelationships(userId)
+      setUserCompanies((prev) => ({
+        ...prev,
+        [userId]: response.data,
+      }))
+    } catch (error) {
+      console.error(`Error fetching companies for user ${userId}:`, error)
+    }
+  }
+
   // Fetch available edge gateways from the API
   const fetchAvailableEdgeGateways = async () => {
     try {
       const response = await edgeGatewaysAPI.getAll({ status: "available" })
-      setAvailableEdgeGateways(response.data || [])
+      setAvailableEdgeGateways(response.data)
     } catch (error) {
       console.error("Error fetching available edge gateways:", error)
       toast({
@@ -86,7 +109,7 @@ export default function AssignmentsPage() {
   const fetchAvailableSmartMeters = async () => {
     try {
       const response = await smartMetersAPI.getAll({ status: "available" })
-      setAvailableSmartMeters(response.data || [])
+      setAvailableSmartMeters(response.data)
     } catch (error) {
       console.error("Error fetching available smart meters:", error)
       toast({
@@ -102,7 +125,8 @@ export default function AssignmentsPage() {
     try {
       setLoading(true)
       const response = await assignmentsAPI.getAll()
-      setAssignments(response.data || [])
+      // Make sure we're setting an array even if the API returns null or undefined
+      setAssignments(response?.data || [])
     } catch (error) {
       console.error("Error fetching assignments:", error)
       toast({
@@ -110,6 +134,8 @@ export default function AssignmentsPage() {
         title: "Error",
         description: "Failed to fetch assignments. Please try again.",
       })
+      // Set empty array on error
+      setAssignments([])
     } finally {
       setLoading(false)
     }
@@ -118,7 +144,7 @@ export default function AssignmentsPage() {
   // Initial data fetch
   useEffect(() => {
     const fetchData = async () => {
-      await Promise.all([fetchUsers(), fetchAvailableEdgeGateways(), fetchAssignments()])
+      await Promise.all([fetchUsers(), fetchAvailableEdgeGateways(), fetchAssignments(), fetchAvailableSmartMeters()])
     }
     fetchData()
   }, [])
@@ -143,6 +169,15 @@ export default function AssignmentsPage() {
     }
   }
 
+  // Get primary company for a user
+  const getPrimaryCompanyForUser = (userId) => {
+    if (!userCompanies[userId] || !userCompanies[userId].length) return null
+
+    // Find primary company or use the first one
+    const primaryCompany = userCompanies[userId].find((rel) => rel.is_primary) || userCompanies[userId][0]
+    return primaryCompany
+  }
+
   // Handle assigning edge gateway to user
   const handleAssignEdgeGateway = async () => {
     try {
@@ -155,12 +190,27 @@ export default function AssignmentsPage() {
         return
       }
 
+      const userCompany = getPrimaryCompanyForUser(selectedUser)
+
+      if (!userCompany) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "User is not associated with any company.",
+        })
+        return
+      }
+
       // Call the API to assign the edge gateway
-      await assignmentsAPI.assignEdgeGateway(selectedUser, selectedEdgeGateway)
+      await assignmentsAPI.assignEdgeGateway(
+        userCompany.company.id,
+        userCompany.facility?.id || null,
+        userCompany.department?.id || null,
+        selectedEdgeGateway,
+      )
 
       // Refresh the data
-      fetchAssignments()
-      fetchAvailableEdgeGateways()
+      await Promise.all([fetchAssignments(), fetchAvailableEdgeGateways()])
 
       // Reset selection and close dialog
       setSelectedEdgeGateway(null)
@@ -183,11 +233,11 @@ export default function AssignmentsPage() {
   // Handle assigning smart meters to edge gateway
   const handleAssignSmartMeters = async () => {
     try {
-      if (!selectedUser || !selectedEdgeGateway || selectedSmartMeters.length === 0) {
+      if (!selectedEdgeGateway || selectedSmartMeters.length === 0) {
         toast({
           variant: "destructive",
           title: "Error",
-          description: "Please select a user, an edge gateway, and at least one smart meter.",
+          description: "Please select an edge gateway and at least one smart meter.",
         })
         return
       }
@@ -196,8 +246,7 @@ export default function AssignmentsPage() {
       await assignmentsAPI.assignSmartMeters(selectedEdgeGateway, selectedSmartMeters)
 
       // Refresh the data
-      fetchAssignments()
-      fetchAvailableSmartMeters()
+      await Promise.all([fetchAssignments(), fetchAvailableSmartMeters()])
 
       // Reset selection and close dialog
       setSelectedSmartMeters([])
@@ -217,6 +266,58 @@ export default function AssignmentsPage() {
     }
   }
 
+  // Handle assigning smart meter directly to user
+  const handleAssignSmartMeterDirect = async () => {
+    try {
+      if (!selectedUser || !selectedSmartMeter) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Please select a user and a smart meter.",
+        })
+        return
+      }
+
+      const userCompany = getPrimaryCompanyForUser(selectedUser)
+
+      if (!userCompany) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "User is not associated with any company.",
+        })
+        return
+      }
+
+      // Create a new assignment for the smart meter
+      const assignmentResponse = await assignmentsAPI.create({
+        company_id: userCompany.company.id,
+        facility_id: userCompany.facility?.id || null,
+        department_id: userCompany.department?.id || null,
+        smart_meter_id: selectedSmartMeter,
+      })
+
+      // Refresh the data
+      await Promise.all([fetchAssignments(), fetchAvailableSmartMeters()])
+
+      // Reset selection and close dialog
+      setSelectedSmartMeter(null)
+      setIsAssignSmartMeterDirectOpen(false)
+
+      toast({
+        title: "Success",
+        description: "Smart meter assigned successfully.",
+      })
+    } catch (error) {
+      console.error("Error assigning smart meter:", error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to assign smart meter. Please try again.",
+      })
+    }
+  }
+
   // Handle smart meter checkbox change
   const handleSmartMeterChange = (meterId) => {
     if (selectedSmartMeters.includes(meterId)) {
@@ -227,14 +328,13 @@ export default function AssignmentsPage() {
   }
 
   // Handle removing edge gateway assignment
-  const handleRemoveEdgeGateway = async (userId, gatewayId) => {
+  const handleRemoveEdgeGateway = async (companyId, gatewayId) => {
     try {
       // Call the API to remove the edge gateway assignment
-      await assignmentsAPI.removeEdgeGateway(userId, gatewayId)
+      await assignmentsAPI.removeEdgeGateway(companyId, gatewayId)
 
       // Refresh the data
-      fetchAssignments()
-      fetchAvailableEdgeGateways()
+      await Promise.all([fetchAssignments(), fetchAvailableEdgeGateways()])
 
       toast({
         title: "Success",
@@ -257,8 +357,7 @@ export default function AssignmentsPage() {
       await assignmentsAPI.removeSmartMeter(gatewayId, meterId)
 
       // Refresh the data
-      fetchAssignments()
-      fetchAvailableSmartMeters()
+      await Promise.all([fetchAssignments(), fetchAvailableSmartMeters()])
 
       toast({
         title: "Success",
@@ -275,22 +374,40 @@ export default function AssignmentsPage() {
   }
 
   // Get total counts
-  const totalAssignedEdgeGateways = assignments.reduce((total, user) => total + user.edge_gateways?.length || 0, 0)
+  const totalAssignedEdgeGateways =
+    assignments?.reduce((total, assignment) => total + (assignment.edge_gateway_id ? 1 : 0), 0) || 0
 
-  const totalAssignedSmartMeters = assignments.reduce(
-    (total, user) =>
-      total +
-        user.edge_gateways?.reduce((gatewayTotal, gateway) => gatewayTotal + gateway.smart_meters?.length || 0, 0) || 0,
-    0,
-  )
+  const totalAssignedSmartMeters =
+    assignments?.reduce((total, assignment) => total + (assignment.smart_meters?.length || 0), 0) || 0
 
   // Filter users based on search term
   const filteredUsers = users.filter(
     (user) =>
-      user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      `${user.first_name} ${user.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.company?.name?.toLowerCase().includes(searchTerm.toLowerCase()),
   )
+
+  // Get user name by ID
+  const getUserName = (userId) => {
+    const user = users.find((u) => u.id === userId)
+    return user ? `${user.first_name} ${user.last_name}` : "Unknown User"
+  }
+
+  // Get company name by ID
+  const getCompanyName = (companyId) => {
+    // Find any assignment with this company ID
+    const assignment = assignments.find((a) => a.company_id === companyId)
+    return assignment ? assignment.company_name : "Unknown Company"
+  }
+
+  // Get assignments for a user
+  const getAssignmentsForUser = (userId) => {
+    const userCompany = getPrimaryCompanyForUser(userId)
+    if (!userCompany) return []
+
+    return assignments.filter((a) => a.company_id === userCompany.company.id)
+  }
 
   return (
     <div className="flex flex-col gap-4 p-4 md:p-8">
@@ -308,7 +425,7 @@ export default function AssignmentsPage() {
             <User className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{assignments.length}</div>
+            <div className="text-2xl font-bold">{users.length}</div>
             <p className="text-xs text-muted-foreground">With assigned devices</p>
           </CardContent>
         </Card>
@@ -338,429 +455,576 @@ export default function AssignmentsPage() {
             <Building className="h-4 w-4 text-purple-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{new Set(assignments.map((a) => a.company?.id)).size}</div>
+            <div className="text-2xl font-bold">{new Set(assignments?.map((a) => a?.company_id) || []).size}</div>
             <p className="text-xs text-muted-foreground">With active devices</p>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        {/* User Selection Panel */}
-        <Card className="lg:col-span-1">
-          <CardHeader>
-            <CardTitle>Select User</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="mb-4">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Search users..."
-                  className="pl-8"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-            </div>
-            <ScrollArea className="h-[400px]">
-              {loading ? (
-                <div className="flex h-40 items-center justify-center">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {filteredUsers.map((user) => (
-                    <div
-                      key={user.id}
-                      className={`flex items-center justify-between rounded-md border p-3 cursor-pointer transition-colors ${
-                        selectedUser === user.id ? "bg-primary/10 border-primary/20" : "hover:bg-muted"
-                      }`}
-                      onClick={() => setSelectedUser(user.id)}
-                    >
-                      <div className="flex flex-col">
-                        <span className="font-medium">{user.name}</span>
-                        <span className="text-sm text-muted-foreground">{user.email}</span>
-                        <span className="text-xs text-muted-foreground">{user.company?.name}</span>
-                      </div>
-                      {selectedUser === user.id && <CheckCircle className="h-5 w-5 text-primary" />}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </ScrollArea>
-          </CardContent>
-        </Card>
+      <Tabs defaultValue="users" value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="users">
+            <UserCircle className="mr-2 h-4 w-4" />
+            User View
+          </TabsTrigger>
+          <TabsTrigger value="companies">
+            <Building2 className="mr-2 h-4 w-4" />
+            Company View
+          </TabsTrigger>
+          <TabsTrigger value="devices">
+            <LayoutGrid className="mr-2 h-4 w-4" />
+            Device View
+          </TabsTrigger>
+        </TabsList>
 
-        {/* Assignment Actions Panel */}
-        <Card className="lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Device Assignments</CardTitle>
-            <div className="flex space-x-2">
-              <Dialog open={isAssignEdgeGatewayOpen} onOpenChange={setIsAssignEdgeGatewayOpen}>
-                <DialogTrigger asChild>
-                  <Button disabled={!selectedUser}>
-                    <Server className="mr-2 h-4 w-4" />
-                    Assign Edge Gateway
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Assign Edge Gateway</DialogTitle>
-                    <DialogDescription>Select an edge gateway to assign to the selected user.</DialogDescription>
-                  </DialogHeader>
-                  <div className="py-4">
-                    <Label className="mb-2 block">Available Edge Gateways</Label>
-                    <ScrollArea className="h-[300px] rounded-md border">
-                      <div className="p-4 space-y-2">
-                        {availableEdgeGateways.length === 0 ? (
-                          <p className="text-center text-muted-foreground py-4">No available edge gateways</p>
-                        ) : (
-                          availableEdgeGateways.map((gateway) => (
-                            <div
-                              key={gateway.id}
-                              className={`flex items-center justify-between rounded-md border p-3 cursor-pointer transition-colors ${
-                                selectedEdgeGateway === gateway.id
-                                  ? "bg-primary/10 border-primary/20"
-                                  : "hover:bg-muted"
-                              }`}
-                              onClick={() => setSelectedEdgeGateway(gateway.id)}
-                            >
-                              <div className="flex flex-col">
-                                <div className="flex items-center">
-                                  <Server className="mr-2 h-4 w-4 text-blue-500" />
-                                  <span className="font-medium">{gateway.model?.model_name || "Unknown"}</span>
-                                </div>
-                                <span className="text-sm text-muted-foreground">Serial: {gateway.serial_number}</span>
-                              </div>
-                              {selectedEdgeGateway === gateway.id && <CheckCircle className="h-5 w-5 text-primary" />}
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </ScrollArea>
+        <TabsContent value="users" className="mt-4">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            {/* User Selection Panel */}
+            <Card className="lg:col-span-1">
+              <CardHeader>
+                <CardTitle>Select User</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="mb-4">
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="search"
+                      placeholder="Search users..."
+                      className="pl-8"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
                   </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsAssignEdgeGatewayOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button onClick={handleAssignEdgeGateway} disabled={!selectedEdgeGateway}>
-                      Assign
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-              <Dialog open={isAssignSmartMeterOpen} onOpenChange={setIsAssignSmartMeterOpen}>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Assign Smart Meters</DialogTitle>
-                    <DialogDescription>Select smart meters to assign to the selected edge gateway.</DialogDescription>
-                  </DialogHeader>
-                  <div className="py-4">
-                    <Label className="mb-2 block">Available Smart Meters</Label>
-                    <ScrollArea className="h-[300px] rounded-md border">
-                      <div className="p-4 space-y-2">
-                        {availableSmartMeters.length === 0 ? (
-                          <p className="text-center text-muted-foreground py-4">No available smart meters</p>
-                        ) : (
-                          availableSmartMeters.map((meter) => (
-                            <div key={meter.id} className="flex items-center justify-between rounded-md border p-3">
-                              <div className="flex items-center gap-2">
-                                <Checkbox
-                                  id={`meter-${meter.id}`}
-                                  checked={selectedSmartMeters.includes(meter.id)}
-                                  onCheckedChange={() => handleSmartMeterChange(meter.id)}
-                                />
-                                <div className="flex flex-col">
-                                  <div className="flex items-center">
-                                    <CircuitBoard className="mr-2 h-4 w-4 text-green-500" />
-                                    <Label htmlFor={`meter-${meter.id}`} className="font-medium">
-                                      {meter.model?.model_name || "Unknown"}
-                                    </Label>
-                                  </div>
-                                  <span className="text-sm text-muted-foreground">Serial: {meter.serial_number}</span>
-                                </div>
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </ScrollArea>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsAssignSmartMeterOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button onClick={handleAssignSmartMeters} disabled={selectedSmartMeters.length === 0}>
-                      Assign Selected ({selectedSmartMeters.length})
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="flex h-[400px] items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
-            ) : assignments.length === 0 ? (
-              <div className="flex h-[400px] items-center justify-center rounded-md border border-dashed">
-                <div className="flex flex-col items-center text-center">
-                  <Network className="h-10 w-10 text-muted-foreground" />
-                  <h3 className="mt-4 text-lg font-semibold">No Assignments</h3>
-                  <p className="mt-2 text-sm text-muted-foreground">Select a user and assign devices to get started.</p>
                 </div>
-              </div>
-            ) : (
-              <ScrollArea className="h-[400px]">
-                <div className="space-y-4">
-                  {assignments.map((assignment) => (
-                    <Collapsible
-                      key={assignment.user_id}
-                      open={expandedUsers.includes(assignment.user_id)}
-                      className={`rounded-md border ${selectedUser === assignment.user_id ? "border-primary/50" : ""}`}
-                    >
-                      <div className="flex items-center justify-between p-4">
-                        <div className="flex items-center">
-                          <CollapsibleTrigger
-                            onClick={() => toggleUserExpansion(assignment.user_id)}
-                            className="flex items-center"
-                          >
-                            {expandedUsers.includes(assignment.user_id) ? (
-                              <ChevronDown className="mr-2 h-4 w-4" />
-                            ) : (
-                              <ChevronRight className="mr-2 h-4 w-4" />
-                            )}
-                            <User className="mr-2 h-4 w-4" />
-                            <div>
-                              <span className="font-medium">{assignment.user?.name}</span>
-                              <span className="ml-2 text-sm text-muted-foreground">({assignment.company?.name})</span>
-                            </div>
-                          </CollapsibleTrigger>
+                <ScrollArea className="h-[400px]">
+                  {loading ? (
+                    <div className="flex h-40 items-center justify-center">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {filteredUsers.map((user) => (
+                        <div
+                          key={user.id}
+                          className={`flex items-center justify-between rounded-md border p-3 cursor-pointer transition-colors ${
+                            selectedUser === user.id ? "bg-primary/10 border-primary/20" : "hover:bg-muted"
+                          }`}
+                          onClick={() => setSelectedUser(user.id)}
+                        >
+                          <div className="flex flex-col">
+                            <span className="font-medium">
+                              {user.first_name} {user.last_name}
+                            </span>
+                            <span className="text-sm text-muted-foreground">{user.email}</span>
+                            <span className="text-xs text-muted-foreground">{user.company?.name}</span>
+                          </div>
+                          {selectedUser === user.id && <CheckCircle className="h-5 w-5 text-primary" />}
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <Badge variant="outline" className="ml-2">
-                            {assignment.edge_gateways?.length || 0} Gateways
-                          </Badge>
-                          <Badge variant="outline" className="ml-2">
-                            {assignment.edge_gateways?.reduce(
-                              (total, gateway) => total + gateway.smart_meters?.length || 0,
-                              0,
-                            ) || 0}{" "}
-                            Meters
-                          </Badge>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                              setSelectedUser(assignment.user_id)
-                              setIsAssignEdgeGatewayOpen(true)
-                            }}
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
+                      ))}
+                    </div>
+                  )}
+                </ScrollArea>
+              </CardContent>
+            </Card>
+
+            {/* Assignment Actions Panel */}
+            <Card className="lg:col-span-2">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>User Devices</CardTitle>
+                <div className="flex space-x-2">
+                  <Dialog open={isAssignEdgeGatewayOpen} onOpenChange={setIsAssignEdgeGatewayOpen}>
+                    <DialogTrigger asChild>
+                      <Button disabled={!selectedUser}>
+                        <Server className="mr-2 h-4 w-4" />
+                        Assign Edge Gateway
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Assign Edge Gateway</DialogTitle>
+                        <DialogDescription>Select an edge gateway to assign to the selected user.</DialogDescription>
+                      </DialogHeader>
+                      <div className="py-4">
+                        <Label className="mb-2 block">Available Edge Gateways</Label>
+                        <ScrollArea className="h-[300px] rounded-md border">
+                          <div className="p-4 space-y-2">
+                            {availableEdgeGateways.length === 0 ? (
+                              <p className="text-center text-muted-foreground py-4">No available edge gateways</p>
+                            ) : (
+                              availableEdgeGateways.map((gateway) => (
+                                <div
+                                  key={gateway.id}
+                                  className={`flex items-center justify-between rounded-md border p-3 cursor-pointer transition-colors ${
+                                    selectedEdgeGateway === gateway.id
+                                      ? "bg-primary/10 border-primary/20"
+                                      : "hover:bg-muted"
+                                  }`}
+                                  onClick={() => setSelectedEdgeGateway(gateway.id)}
+                                >
+                                  <div className="flex flex-col">
+                                    <div className="flex items-center">
+                                      <Server className="mr-2 h-4 w-4 text-blue-500" />
+                                      <span className="font-medium">{gateway.model_name || "Unknown"}</span>
+                                    </div>
+                                    <span className="text-sm text-muted-foreground">
+                                      Serial: {gateway.serial_number}
+                                    </span>
+                                  </div>
+                                  {selectedEdgeGateway === gateway.id && (
+                                    <CheckCircle className="h-5 w-5 text-primary" />
+                                  )}
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </ScrollArea>
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsAssignEdgeGatewayOpen(false)}>
+                          Cancel
+                        </Button>
+                        <Button onClick={handleAssignEdgeGateway} disabled={!selectedEdgeGateway}>
+                          Assign
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+
+                  <Dialog open={isAssignSmartMeterDirectOpen} onOpenChange={setIsAssignSmartMeterDirectOpen}>
+                    <DialogTrigger asChild>
+                      <Button disabled={!selectedUser} variant="outline">
+                        <CircuitBoard className="mr-2 h-4 w-4" />
+                        Assign Smart Meter
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Assign Smart Meter</DialogTitle>
+                        <DialogDescription>Select a smart meter to assign directly to the user.</DialogDescription>
+                      </DialogHeader>
+                      <div className="py-4">
+                        <Label className="mb-2 block">Available Smart Meters</Label>
+                        <ScrollArea className="h-[300px] rounded-md border">
+                          <div className="p-4 space-y-2">
+                            {availableSmartMeters.length === 0 ? (
+                              <p className="text-center text-muted-foreground py-4">No available smart meters</p>
+                            ) : (
+                              availableSmartMeters.map((meter) => (
+                                <div
+                                  key={meter.id}
+                                  className={`flex items-center justify-between rounded-md border p-3 cursor-pointer transition-colors ${
+                                    selectedSmartMeter === meter.id
+                                      ? "bg-primary/10 border-primary/20"
+                                      : "hover:bg-muted"
+                                  }`}
+                                  onClick={() => setSelectedSmartMeter(meter.id)}
+                                >
+                                  <div className="flex flex-col">
+                                    <div className="flex items-center">
+                                      <CircuitBoard className="mr-2 h-4 w-4 text-green-500" />
+                                      <span className="font-medium">{meter.model?.model_name || "Unknown"}</span>
+                                    </div>
+                                    <span className="text-sm text-muted-foreground">Serial: {meter.serial_number}</span>
+                                  </div>
+                                  {selectedSmartMeter === meter.id && <CheckCircle className="h-5 w-5 text-primary" />}
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </ScrollArea>
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsAssignSmartMeterDirectOpen(false)}>
+                          Cancel
+                        </Button>
+                        <Button onClick={handleAssignSmartMeterDirect} disabled={!selectedSmartMeter}>
+                          Assign
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <div className="flex h-[400px] items-center justify-center">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                ) : !selectedUser ? (
+                  <div className="flex h-[400px] items-center justify-center rounded-md border border-dashed">
+                    <div className="flex flex-col items-center text-center">
+                      <User className="h-10 w-10 text-muted-foreground" />
+                      <h3 className="mt-4 text-lg font-semibold">No User Selected</h3>
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        Select a user to view and manage their devices.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <ScrollArea className="h-[400px]">
+                    <div className="space-y-4">
+                      {/* User info */}
+                      <div className="rounded-md border p-4">
+                        <div className="flex items-center gap-3 mb-3">
+                          <UserCircle className="h-8 w-8 text-primary" />
+                          <div>
+                            <h3 className="font-semibold text-lg">
+                              {users.find((u) => u.id === selectedUser)?.first_name}{" "}
+                              {users.find((u) => u.id === selectedUser)?.last_name}
+                            </h3>
+                            <p className="text-sm text-muted-foreground">
+                              {users.find((u) => u.id === selectedUser)?.email}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                          <div className="rounded-md border p-3">
+                            <h4 className="font-medium text-sm mb-1">Company</h4>
+                            <p>{getPrimaryCompanyForUser(selectedUser)?.company?.name || "No company assigned"}</p>
+                          </div>
+                          <div className="rounded-md border p-3">
+                            <h4 className="font-medium text-sm mb-1">Facility</h4>
+                            <p>{getPrimaryCompanyForUser(selectedUser)?.facility?.name || "No facility assigned"}</p>
+                          </div>
                         </div>
                       </div>
-                      <CollapsibleContent>
-                        <div className="space-y-2 p-4 pt-0">
-                          {!assignment.edge_gateways || assignment.edge_gateways.length === 0 ? (
-                            <div className="rounded-md border border-dashed p-4 text-center">
-                              <p className="text-sm text-muted-foreground">No edge gateways assigned</p>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="mt-2"
-                                onClick={() => {
-                                  setSelectedUser(assignment.user_id)
-                                  setIsAssignEdgeGatewayOpen(true)
-                                }}
-                              >
-                                <Plus className="mr-2 h-4 w-4" />
+
+                      {/* User's devices */}
+                      <div className="rounded-md border p-4">
+                        <h3 className="font-semibold mb-3">Assigned Devices</h3>
+
+                        {getAssignmentsForUser(selectedUser).length === 0 ? (
+                          <div className="rounded-md border border-dashed p-4 text-center">
+                            <p className="text-sm text-muted-foreground">No devices assigned to this user</p>
+                            <div className="flex justify-center gap-2 mt-2">
+                              <Button variant="outline" size="sm" onClick={() => setIsAssignEdgeGatewayOpen(true)}>
+                                <Server className="mr-2 h-4 w-4" />
                                 Assign Edge Gateway
                               </Button>
+                              <Button variant="outline" size="sm" onClick={() => setIsAssignSmartMeterDirectOpen(true)}>
+                                <CircuitBoard className="mr-2 h-4 w-4" />
+                                Assign Smart Meter
+                              </Button>
                             </div>
-                          ) : (
-                            assignment.edge_gateways.map((gateway) => (
-                              <Collapsible
-                                key={gateway.id}
-                                open={expandedGateways.includes(gateway.id)}
-                                className="rounded-md border"
-                              >
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {getAssignmentsForUser(selectedUser).map((assignment) => (
+                              <Collapsible key={assignment.id} className="rounded-md border">
                                 <div className="flex items-center justify-between p-3">
                                   <div className="flex items-center">
-                                    <CollapsibleTrigger
-                                      onClick={() => toggleGatewayExpansion(gateway.id)}
-                                      className="flex items-center"
-                                    >
-                                      {expandedGateways.includes(gateway.id) ? (
-                                        <ChevronDown className="mr-2 h-4 w-4" />
-                                      ) : (
-                                        <ChevronRight className="mr-2 h-4 w-4" />
-                                      )}
-                                      <Server className="mr-2 h-4 w-4 text-blue-500" />
-                                      <div>
-                                        <span className="font-medium">{gateway.model?.model_name || "Unknown"}</span>
-                                        <span className="ml-2 text-sm text-muted-foreground">
-                                          ({gateway.serial_number})
+                                    {assignment.edge_gateway_id ? (
+                                      <>
+                                        <Server className="mr-2 h-4 w-4 text-blue-500" />
+                                        <span className="font-medium">
+                                          Edge Gateway: {assignment.edge_gateway_serial || "Unknown"}
                                         </span>
-                                      </div>
-                                    </CollapsibleTrigger>
-                                  </div>
-                                  <div className="flex items-center space-x-2">
-                                    <Badge variant="outline">{gateway.smart_meters?.length || 0} Meters</Badge>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() => {
-                                        setSelectedUser(assignment.user_id)
-                                        setSelectedEdgeGateway(gateway.id)
-                                        setIsAssignSmartMeterOpen(true)
-                                      }}
-                                    >
-                                      <Plus className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="text-red-500 hover:text-red-700 hover:bg-red-100"
-                                      onClick={() => handleRemoveEdgeGateway(assignment.user_id, gateway.id)}
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                </div>
-                                <CollapsibleContent>
-                                  <div className="space-y-2 p-3 pt-0">
-                                    {!gateway.smart_meters || gateway.smart_meters.length === 0 ? (
-                                      <div className="rounded-md border border-dashed p-3 text-center">
-                                        <p className="text-sm text-muted-foreground">No smart meters assigned</p>
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          className="mt-2"
-                                          onClick={() => {
-                                            setSelectedUser(assignment.user_id)
-                                            setSelectedEdgeGateway(gateway.id)
-                                            setIsAssignSmartMeterOpen(true)
-                                          }}
-                                        >
-                                          <Plus className="mr-2 h-4 w-4" />
-                                          Assign Smart Meters
-                                        </Button>
-                                      </div>
+                                      </>
+                                    ) : assignment.smart_meters && assignment.smart_meters.length > 0 ? (
+                                      <>
+                                        <CircuitBoard className="mr-2 h-4 w-4 text-green-500" />
+                                        <span className="font-medium">
+                                          Smart Meter: {assignment.smart_meters[0]?.serial_number || "Unknown"}
+                                        </span>
+                                      </>
                                     ) : (
-                                      <div className="rounded-md border">
-                                        <Table>
-                                          <TableHeader>
-                                            <TableRow>
-                                              <TableHead>Smart Meter</TableHead>
-                                              <TableHead>Serial Number</TableHead>
-                                              <TableHead className="text-right">Actions</TableHead>
-                                            </TableRow>
-                                          </TableHeader>
-                                          <TableBody>
-                                            {gateway.smart_meters.map((meter) => (
-                                              <TableRow key={meter.id}>
-                                                <TableCell>
-                                                  <div className="flex items-center">
-                                                    <CircuitBoard className="mr-2 h-4 w-4 text-green-500" />
-                                                    <span>{meter.model?.model_name || "Unknown"}</span>
-                                                  </div>
-                                                </TableCell>
-                                                <TableCell>{meter.serial_number}</TableCell>
-                                                <TableCell className="text-right">
-                                                  <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => handleRemoveSmartMeter(gateway.id, meter.id)}
-                                                  >
-                                                    <Trash2 className="h-4 w-4 text-red-500" />
-                                                  </Button>
-                                                </TableCell>
-                                              </TableRow>
-                                            ))}
-                                          </TableBody>
-                                        </Table>
-                                      </div>
+                                      <>
+                                        <CircuitBoard className="mr-2 h-4 w-4 text-gray-500" />
+                                        <span className="font-medium">Empty Assignment</span>
+                                      </>
                                     )}
                                   </div>
-                                </CollapsibleContent>
-                              </Collapsible>
-                            ))
-                          )}
-                        </div>
-                      </CollapsibleContent>
-                    </Collapsible>
-                  ))}
-                </div>
-              </ScrollArea>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                                  <div className="flex items-center space-x-2">
+                                    {assignment.edge_gateway_id && (
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="text-red-500 hover:text-red-700 hover:bg-red-100"
+                                        onClick={() =>
+                                          handleRemoveEdgeGateway(assignment.company_id, assignment.edge_gateway_id)
+                                        }
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    )}
+                                  </div>
+                                </div>
 
-      {/* Assignment Overview */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Assignment Overview</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead>Company</TableHead>
-                  <TableHead>Edge Gateways</TableHead>
-                  <TableHead>Smart Meters</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center">
-                      <div className="flex justify-center">
-                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : assignments.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center">
-                      No assignments found.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  assignments.map((assignment) => (
-                    <TableRow key={assignment.user_id}>
-                      <TableCell className="font-medium">{assignment.user?.name}</TableCell>
-                      <TableCell>{assignment.company?.name}</TableCell>
-                      <TableCell>{assignment.edge_gateways?.length || 0}</TableCell>
-                      <TableCell>
-                        {assignment.edge_gateways?.reduce(
-                          (total, gateway) => total + gateway.smart_meters?.length || 0,
-                          0,
-                        ) || 0}
-                      </TableCell>
-                      <TableCell>
-                        {assignment.edge_gateways?.length > 0 ? (
-                          <Badge variant="default" className="bg-green-500">
-                            Active
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline">Pending</Badge>
+                                {assignment.edge_gateway_id &&
+                                  assignment.smart_meters &&
+                                  assignment.smart_meters.length > 0 && (
+                                    <CollapsibleContent>
+                                      <div className="border-t p-3">
+                                        <h4 className="font-medium text-sm mb-2">Connected Smart Meters</h4>
+                                        <div className="space-y-2">
+                                          {assignment.smart_meters.map((meter) => (
+                                            <div
+                                              key={meter.id}
+                                              className="flex items-center justify-between rounded-md border p-2"
+                                            >
+                                              <div className="flex items-center">
+                                                <CircuitBoard className="mr-2 h-4 w-4 text-green-500" />
+                                                <span>{meter.serial_number}</span>
+                                              </div>
+                                              <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="text-red-500 hover:text-red-700 hover:bg-red-100"
+                                                onClick={() =>
+                                                  handleRemoveSmartMeter(assignment.edge_gateway_id, meter.id)
+                                                }
+                                              >
+                                                <Trash2 className="h-4 w-4" />
+                                              </Button>
+                                            </div>
+                                          ))}
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="w-full mt-2"
+                                            onClick={() => {
+                                              setSelectedEdgeGateway(assignment.edge_gateway_id)
+                                              setIsAssignSmartMeterOpen(true)
+                                            }}
+                                          >
+                                            <Plus className="mr-2 h-4 w-4" />
+                                            Add Smart Meter
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    </CollapsibleContent>
+                                  )}
+                              </Collapsible>
+                            ))}
+                          </div>
                         )}
-                      </TableCell>
+                      </div>
+                    </div>
+                  </ScrollArea>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="companies" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Company Assignments</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Company</TableHead>
+                      <TableHead>Edge Gateways</TableHead>
+                      <TableHead>Smart Meters</TableHead>
+                      <TableHead>Status</TableHead>
                     </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="h-24 text-center">
+                          <div className="flex justify-center">
+                            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : assignments.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="h-24 text-center">
+                          No assignments found.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      // Group assignments by company
+                      Object.entries(
+                        assignments.reduce((acc, assignment) => {
+                          if (!acc[assignment.company_id]) {
+                            acc[assignment.company_id] = {
+                              company_id: assignment.company_id,
+                              company_name: assignment.company_name,
+                              edge_gateways: 0,
+                              smart_meters: 0,
+                            }
+                          }
+
+                          if (assignment.edge_gateway_id) {
+                            acc[assignment.company_id].edge_gateways++
+                          }
+
+                          acc[assignment.company_id].smart_meters += assignment.smart_meters?.length || 0
+
+                          return acc
+                        }, {}),
+                      ).map(([companyId, data]) => (
+                        <TableRow key={companyId}>
+                          <TableCell className="font-medium">{data.company_name}</TableCell>
+                          <TableCell>{data.edge_gateways}</TableCell>
+                          <TableCell>{data.smart_meters}</TableCell>
+                          <TableCell>
+                            {data.edge_gateways > 0 || data.smart_meters > 0 ? (
+                              <Badge variant="default" className="bg-green-500">
+                                Active
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline">Pending</Badge>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="devices" className="mt-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Edge Gateways</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-[400px]">
+                  <div className="space-y-3">
+                    {loading ? (
+                      <div className="flex h-40 items-center justify-center">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                      </div>
+                    ) : assignments.filter((a) => a.edge_gateway_id).length === 0 ? (
+                      <div className="rounded-md border border-dashed p-4 text-center">
+                        <p className="text-sm text-muted-foreground">No edge gateways assigned</p>
+                      </div>
+                    ) : (
+                      assignments
+                        .filter((a) => a.edge_gateway_id)
+                        .map((assignment) => (
+                          <div key={assignment.edge_gateway_id} className="rounded-md border p-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center">
+                                <Server className="mr-2 h-4 w-4 text-blue-500" />
+                                <span className="font-medium">{assignment.edge_gateway_serial || "Unknown"}</span>
+                              </div>
+                              <Badge variant="outline">{assignment.company_name}</Badge>
+                            </div>
+                            <div className="mt-2 text-sm text-muted-foreground">
+                              {assignment.smart_meters?.length || 0} connected smart meters
+                            </div>
+                          </div>
+                        ))
+                    )}
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Smart Meters</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-[400px]">
+                  <div className="space-y-3">
+                    {loading ? (
+                      <div className="flex h-40 items-center justify-center">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                      </div>
+                    ) : assignments.filter((a) => a.smart_meters?.length > 0).length === 0 ? (
+                      <div className="rounded-md border border-dashed p-4 text-center">
+                        <p className="text-sm text-muted-foreground">No smart meters assigned</p>
+                      </div>
+                    ) : (
+                      assignments
+                        .flatMap((assignment) =>
+                          (assignment.smart_meters || []).map((meter) => ({
+                            ...meter,
+                            company_name: assignment.company_name,
+                            edge_gateway_id: assignment.edge_gateway_id,
+                            edge_gateway_serial: assignment.edge_gateway_serial,
+                          })),
+                        )
+                        .map((meter) => (
+                          <div key={meter.id} className="rounded-md border p-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center">
+                                <CircuitBoard className="mr-2 h-4 w-4 text-green-500" />
+                                <span className="font-medium">{meter.serial_number}</span>
+                              </div>
+                              <Badge variant="outline">{meter.company_name}</Badge>
+                            </div>
+                            <div className="mt-2 text-sm text-muted-foreground">
+                              {meter.edge_gateway_id ? (
+                                <span>Connected to gateway: {meter.edge_gateway_serial}</span>
+                              ) : (
+                                <span>Directly assigned</span>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                    )}
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
+
+      {/* Assign Smart Meters to Edge Gateway Dialog */}
+      <Dialog open={isAssignSmartMeterOpen} onOpenChange={setIsAssignSmartMeterOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign Smart Meters</DialogTitle>
+            <DialogDescription>Select smart meters to assign to the selected edge gateway.</DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label className="mb-2 block">Available Smart Meters</Label>
+            <ScrollArea className="h-[300px] rounded-md border">
+              <div className="p-4 space-y-2">
+                {availableSmartMeters.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-4">No available smart meters</p>
+                ) : (
+                  availableSmartMeters.map((meter) => (
+                    <div key={meter.id} className="flex items-center justify-between rounded-md border p-3">
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id={`meter-${meter.id}`}
+                          checked={selectedSmartMeters.includes(meter.id)}
+                          onCheckedChange={() => handleSmartMeterChange(meter.id)}
+                        />
+                        <div className="flex flex-col">
+                          <div className="flex items-center">
+                            <CircuitBoard className="mr-2 h-4 w-4 text-green-500" />
+                            <Label htmlFor={`meter-${meter.id}`} className="font-medium">
+                              {meter.model?.model_name || "Unknown"}
+                            </Label>
+                          </div>
+                          <span className="text-sm text-muted-foreground">Serial: {meter.serial_number}</span>
+                        </div>
+                      </div>
+                    </div>
                   ))
                 )}
-              </TableBody>
-            </Table>
+              </div>
+            </ScrollArea>
           </div>
-        </CardContent>
-      </Card>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAssignSmartMeterOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAssignSmartMeters} disabled={selectedSmartMeters.length === 0}>
+              Assign Selected ({selectedSmartMeters.length})
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
