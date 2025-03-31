@@ -2,7 +2,8 @@
 // This file serves as the central point for all API calls to the backend
 
 // Base API URL - should be set from environment variables in production
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"
+//const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"
+const API_BASE_URL = "https://api.enmsgo.com/api"
 
 // Helper function for handling API responses
 const handleResponse = async (response) => {
@@ -1621,17 +1622,27 @@ export const assignmentsAPI = {
       throw error
     }
   },
-  removeEdgeGateway: async (userId, gatewayId) => {
+  removeEdgeGateway: async (companyId, gatewayId) => {
     try {
-      console.log("Removing edge gateway:", { userId, gatewayId })
+      console.log("Removing edge gateway:", { companyId, gatewayId })
       const response = await fetch(`${API_BASE_URL}/assignments/remove-edge-gateway`, {
         method: "POST",
         headers: { ...authHeader(), "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, gatewayId }),
+        body: JSON.stringify({ companyId, gatewayId }),
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
+        const errorText = await response.text()
+        console.error("Server error response text:", errorText)
+
+        let errorData
+        try {
+          errorData = JSON.parse(errorText)
+        } catch (e) {
+          console.error("Error parsing error response:", e)
+          throw new Error(`Failed to remove edge gateway: ${errorText}`)
+        }
+
         throw new Error(errorData.message || "Failed to remove edge gateway")
       }
 

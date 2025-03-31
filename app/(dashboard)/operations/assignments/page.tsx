@@ -407,6 +407,29 @@ export default function AssignmentsPage() {
     }
   }
 
+  // Handle removing directly assigned smart meter
+  const handleRemoveDirectSmartMeter = async (assignmentId, meterId) => {
+    try {
+      // Call the API to delete the assignment
+      await assignmentsAPI.delete(assignmentId)
+
+      // Refresh the data
+      await Promise.all([fetchAssignments(), fetchAvailableSmartMeters()])
+
+      toast({
+        title: "Success",
+        description: "Smart meter assignment removed successfully.",
+      })
+    } catch (error) {
+      console.error("Error removing direct smart meter assignment:", error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to remove smart meter assignment. Please try again.",
+      })
+    }
+  }
+
   // Get total counts
   const totalAssignedEdgeGateways =
     assignments?.reduce((total, assignment) => total + (assignment.edge_gateway_id ? 1 : 0), 0) || 0
@@ -783,6 +806,20 @@ export default function AssignmentsPage() {
                                         <Trash2 className="h-4 w-4" />
                                       </Button>
                                     )}
+                                    {!assignment.edge_gateway_id &&
+                                      assignment.smart_meters &&
+                                      assignment.smart_meters.length > 0 && (
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="text-red-500 hover:text-red-700 hover:bg-red-100"
+                                          onClick={() =>
+                                            handleRemoveDirectSmartMeter(assignment.id, assignment.smart_meters[0].id)
+                                          }
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      )}
                                   </div>
                                 </div>
 
