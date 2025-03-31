@@ -80,13 +80,25 @@ export default function AssignmentsPage() {
   // Fetch user companies
   const fetchUserCompanies = async (userId) => {
     try {
+      console.log(`Fetching company information for user: ${userId}`)
       const response = await usersAPI.getUserCompanyRelationships(userId)
+      console.log(`Company data for user ${userId}:`, response.data)
+
+      if (!response.data || response.data.length === 0) {
+        console.warn(`No company relationships found for user ${userId}`)
+      }
+
       setUserCompanies((prev) => ({
         ...prev,
         [userId]: response.data,
       }))
     } catch (error) {
       console.error(`Error fetching companies for user ${userId}:`, error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to fetch user's company information.",
+      })
     }
   }
 
@@ -190,24 +202,46 @@ export default function AssignmentsPage() {
         return
       }
 
-      const userCompany = getPrimaryCompanyForUser(selectedUser)
+      // Log the selected user and gateway for debugging
+      console.log(`Assigning edge gateway ${selectedEdgeGateway} to user ${selectedUser}`)
 
-      if (!userCompany) {
+      // Check if we have company information for this user
+      if (!userCompanies[selectedUser] || userCompanies[selectedUser].length === 0) {
+        console.log("No company information found for user, fetching now...")
+        await fetchUserCompanies(selectedUser)
+
+        // Check again after fetching
+        if (!userCompanies[selectedUser] || userCompanies[selectedUser].length === 0) {
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "User is not associated with any company. Please assign a company to this user first.",
+          })
+          return
+        }
+      }
+
+      const userCompany = getPrimaryCompanyForUser(selectedUser)
+      console.log("User company information:", userCompany)
+
+      if (!userCompany || !userCompany.company || !userCompany.company.id) {
         toast({
           variant: "destructive",
           title: "Error",
-          description: "User is not associated with any company.",
+          description: "Could not determine user's company. Please ensure the user is associated with a company.",
         })
         return
       }
 
       // Call the API to assign the edge gateway
-      await assignmentsAPI.assignEdgeGateway(
-        userCompany.company.id,
-        userCompany.facility?.id || null,
-        userCompany.department?.id || null,
-        selectedEdgeGateway,
-      )
+      console.log("Calling API with parameters:", {
+        companyId: userCompany.company.id,
+        facilityId: userCompany.facility?.id || null,
+        departmentId: userCompany.department?.id || null,
+        gatewayId: selectedEdgeGateway,
+      })
+
+      await assignmentsAPI.assignEdgeGateway(selectedUser, selectedEdgeGateway)
 
       // Refresh the data
       await Promise.all([fetchAssignments(), fetchAvailableEdgeGateways()])

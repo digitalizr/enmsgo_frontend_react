@@ -1558,10 +1558,12 @@ export const assignmentsAPI = {
 
       if (!userResponse.ok) {
         const errorData = await userResponse.json()
+        console.error("Error fetching user company data:", errorData)
         throw new Error(errorData.message || "Failed to get user company information")
       }
 
       const userCompanyData = await userResponse.json()
+      console.log("User company data:", userCompanyData)
 
       if (!userCompanyData.data || userCompanyData.data.length === 0) {
         throw new Error("User is not associated with any company")
@@ -1569,6 +1571,11 @@ export const assignmentsAPI = {
 
       // Use the primary company or the first one in the list
       const primaryCompany = userCompanyData.data.find((rel) => rel.is_primary) || userCompanyData.data[0]
+      console.log("Selected company for assignment:", primaryCompany)
+
+      if (!primaryCompany.company || !primaryCompany.company.id) {
+        throw new Error("Invalid company information")
+      }
 
       // Now create the assignment with company_id instead of user_id
       const response = await fetch(`${API_BASE_URL}/assignments/assign-edge-gateway`, {
@@ -1584,6 +1591,7 @@ export const assignmentsAPI = {
 
       if (!response.ok) {
         const errorData = await response.json()
+        console.error("Error response from assign-edge-gateway:", errorData)
         throw new Error(errorData.message || "Failed to assign edge gateway")
       }
 
