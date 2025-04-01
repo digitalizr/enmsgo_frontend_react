@@ -364,8 +364,24 @@ export default function AssignmentsPage() {
   // Handle removing edge gateway assignment
   const handleRemoveEdgeGateway = async (companyId, gatewayId) => {
     try {
-      // Call the API to remove the edge gateway assignment
-      await assignmentsAPI.removeEdgeGateway(companyId, gatewayId)
+      // Make sure we have a selected user
+      if (!selectedUser) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "No user selected. Please select a user first.",
+        })
+        return
+      }
+
+      // Log the parameters for debugging
+      console.log("Removing edge gateway with params:", {
+        userId: selectedUser,
+        gatewayId: gatewayId,
+      })
+
+      // Call the API with both userId and gatewayId
+      await assignmentsAPI.removeEdgeGateway(selectedUser, gatewayId)
 
       // Refresh the data
       await Promise.all([fetchAssignments(), fetchAvailableEdgeGateways()])
