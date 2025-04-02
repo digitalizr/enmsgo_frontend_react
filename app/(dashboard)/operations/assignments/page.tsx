@@ -476,9 +476,13 @@ export default function AssignmentsPage() {
 
   // Get assignments for a user
   const getAssignmentsForUser = (userId) => {
-    const userCompany = getPrimaryCompanyForUser(userId)
-    if (!userCompany) return []
+    // If no user is selected, return empty array
+    if (!userId) return []
 
+    const userCompany = getPrimaryCompanyForUser(userId)
+    if (!userCompany || !userCompany.company) return []
+
+    // Only return assignments that actually belong to this user's company
     return assignments.filter((a) => a.company_id === userCompany.company.id)
   }
 

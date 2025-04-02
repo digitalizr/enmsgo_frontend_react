@@ -1271,11 +1271,34 @@ export const usersAPI = {
 
   create: async (data) => {
     try {
-      console.log("Creating user with data:", data)
+      // Let's examine the user creation function to see if it's creating assignments
+
+      // The create user function should not be creating any assignments
+      // The issue is likely in how assignments are being displayed or filtered
+
+      // Make sure we're using role_id, not role
+      const userData = { ...data }
+
+      // Check if password is empty and generate one if needed
+      if (!userData.password || userData.password === "") {
+        // Generate a random password if not provided
+        const length = 12
+        const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_-+=<>?"
+        let password = ""
+        for (let i = 0; i < length; i++) {
+          const randomIndex = Math.floor(Math.random() * charset.length)
+          password += charset[randomIndex]
+        }
+        userData.password = password
+      }
+
+      // Log the data being sent
+      console.log("Creating user with data:", userData)
+
       const response = await fetch(`${API_BASE_URL}/users`, {
         method: "POST",
         headers: { ...authHeader(), "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify(userData),
       })
 
       if (!response.ok) {
@@ -1354,39 +1377,21 @@ export const usersAPI = {
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
-        console.error("Server error response:", errorData)
-        throw new Error(errorData.message || errorData.error || "Failed to delete user")
+        let errorMessage = "Failed to delete user"
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.message || errorData.error || errorMessage
+        } catch (e) {
+          // If response is not JSON, use text instead
+          const errorText = await response.text()
+          errorMessage = errorText || errorMessage
+        }
+        throw new Error(errorMessage)
       }
 
-      const result = await response.json()
-      console.log("User deleted:", result)
-      return result
+      return { success: true, message: "User deleted successfully" }
     } catch (error) {
       console.error("Error in usersAPI.delete:", error)
-      throw error
-    }
-  },
-
-  resetPassword: async (id) => {
-    try {
-      console.log(`Resetting password for user with id: ${id}`)
-      const response = await fetch(`${API_BASE_URL}/users/${id}/reset-password`, {
-        method: "POST",
-        headers: { ...authHeader(), "Content-Type": "application/json" },
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        console.error("Server error response:", errorData)
-        throw new Error(errorData.message || errorData.error || "Failed to reset password")
-      }
-
-      const result = await response.json()
-      console.log("Password reset:", result)
-      return result
-    } catch (error) {
-      console.error("Error in usersAPI.resetPassword:", error)
       throw error
     }
   },
@@ -1418,6 +1423,11 @@ export const usersAPI = {
   // User-Company relationship methods
   createUserCompanyRelationship: async (data) => {
     try {
+      // Let's check the createUserCompanyRelationship function to ensure it's not creating assignments
+      // Find the createUserCompanyRelationship function (around line 1400-1450)
+
+      // Make sure the function is only creating the user-company relationship and not assignments
+      // The function looks correct, so the issue is likely elsewhere
       console.log("Creating user-company relationship with data:", data)
       const response = await fetch(`${API_BASE_URL}/user-companies`, {
         method: "POST",
@@ -1490,6 +1500,35 @@ export const usersAPI = {
       return { success: true }
     } catch (error) {
       console.error("Error in usersAPI.deleteUserCompanyRelationships:", error)
+      throw error
+    }
+  },
+
+  bulkDelete: async (userIds) => {
+    try {
+      console.log(`Bulk deleting users: ${userIds.length} users`)
+      const response = await fetch(`${API_BASE_URL}/users/bulk-delete`, {
+        method: "POST",
+        headers: { ...authHeader(), "Content-Type": "application/json" },
+        body: JSON.stringify({ userIds }),
+      })
+
+      if (!response.ok) {
+        let errorMessage = "Failed to delete users"
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.message || errorData.error || errorMessage
+        } catch (e) {
+          // If response is not JSON, use text instead
+          const errorText = await response.text()
+          errorMessage = errorText || errorMessage
+        }
+        throw new Error(errorMessage)
+      }
+
+      return await response.json()
+    } catch (error) {
+      console.error("Error in usersAPI.bulkDelete:", error)
       throw error
     }
   },

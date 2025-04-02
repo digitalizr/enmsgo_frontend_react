@@ -43,6 +43,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
 import { usersAPI, companiesAPI } from "@/services/api"
+import { Checkbox } from "@/components/ui/checkbox"
 
 // Helper function to get auth header
 const authHeader = () => {
@@ -88,6 +89,12 @@ export default function UsersPage() {
     facility_id: "",
     department_id: "",
   })
+
+  // Add a new state for selected users and a function to handle bulk deletion
+  // Add this after the other state declarations (around line 50)
+
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([])
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false)
 
   // Fetch users
   const fetchUsers = async () => {
@@ -335,13 +342,12 @@ export default function UsersPage() {
   }
 
   // Handle department selection
-  // Handle department selection
   const handleDepartmentChange = (departmentId) => {
     setNewUser((prev) => ({
       ...prev,
       department_id: departmentId,
-    }));
-  };
+    }))
+  }
 
   // Handle add user
   const handleAddUser = async () => {
@@ -556,6 +562,58 @@ export default function UsersPage() {
     }
   }
 
+  // Add a function to handle bulk deletion
+  // Add this after the other handler functions (around line 300)
+
+  const handleBulkDelete = async () => {
+    try {
+      // Create an array of promises for each user deletion
+      const deletePromises = selectedUsers.map((userId) => usersAPI.delete(userId))
+
+      // Execute all delete operations in parallel
+      await Promise.all(deletePromises)
+
+      toast({
+        title: "Success",
+        description: `Successfully deleted ${selectedUsers.length} users.`,
+      })
+
+      // Refresh the user list
+      fetchUsers()
+
+      // Clear selection and close dialog
+      setSelectedUsers([])
+      setIsBulkDeleteDialogOpen(false)
+    } catch (error) {
+      console.error("Error performing bulk delete:", error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to delete some users. Please try again.",
+      })
+    }
+  }
+
+  // Add a function to toggle selection of a user
+  // Add this after the handleBulkDelete function
+
+  const toggleUserSelection = (userId: string) => {
+    setSelectedUsers((prev) => (prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]))
+  }
+
+  // Add a function to toggle selection of all users
+  // Add this after the toggleUserSelection function
+
+  const toggleSelectAll = () => {
+    if (selectedUsers.length === filteredUsers.length) {
+      // If all are selected, deselect all
+      setSelectedUsers([])
+    } else {
+      // Otherwise, select all
+      setSelectedUsers(filteredUsers.map((user) => user.id))
+    }
+  }
+
   const filteredUsers = users.filter((user) => {
     const matchesSearch =
       user.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -693,11 +751,20 @@ export default function UsersPage() {
 
       <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
         <div className="flex items-center justify-between">
-          <TabsList>
-            <TabsTrigger value="all">All Users</TabsTrigger>
-            <TabsTrigger value="active">Active</TabsTrigger>
-            <TabsTrigger value="inactive">Inactive</TabsTrigger>
-          </TabsList>
+          <div className="flex items-center gap-4">
+            <TabsList>
+              <TabsTrigger value="all">All Users</TabsTrigger>
+              <TabsTrigger value="active">Active</TabsTrigger>
+              <TabsTrigger value="inactive">Inactive</TabsTrigger>
+            </TabsList>
+
+            {selectedUsers.length > 0 && (
+              <Button variant="destructive" size="sm" onClick={() => setIsBulkDeleteDialogOpen(true)}>
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete Selected ({selectedUsers.length})
+              </Button>
+            )}
+          </div>
 
           <div className="relative w-64">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -718,6 +785,13 @@ export default function UsersPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-[50px]">
+                        <Checkbox
+                          checked={selectedUsers.length === filteredUsers.length && filteredUsers.length > 0}
+                          onCheckedChange={toggleSelectAll}
+                          aria-label="Select all users"
+                        />
+                      </TableHead>
                       <TableHead>Name</TableHead>
                       <TableHead>Email</TableHead>
                       <TableHead>Role</TableHead>
@@ -746,6 +820,13 @@ export default function UsersPage() {
                     ) : (
                       filteredUsers.map((user) => (
                         <TableRow key={user.id}>
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedUsers.includes(user.id)}
+                              onCheckedChange={() => toggleUserSelection(user.id)}
+                              aria-label={`Select ${user.first_name} ${user.last_name}`}
+                            />
+                          </TableCell>
                           <TableCell className="font-medium">
                             {user.first_name} {user.last_name}
                           </TableCell>
@@ -1316,6 +1397,37 @@ export default function UsersPage() {
             <Button onClick={handleManualPasswordReset} disabled={!manualPassword}>
               <KeyRound className="mr-2 h-4 w-4" />
               Reset Password
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <Dialog open={isBulkDeleteDialogOpen} onOpenChange={setIsBulkDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Bulk Delete Users</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete {selectedUsers.length} selected users? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground mb-2">
+              This will permanently remove the selected users from the system.
+            </p>
+            <div className="bg-amber-50 p-3 rounded-md text-amber-800 text-sm">
+              <p className="flex items-center">
+                <InfoIcon className="h-4 w-4 mr-2" />
+                Warning: Any assignments or data associated with these users will also be affected.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsBulkDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleBulkDelete}>
+              Delete {selectedUsers.length} Users
             </Button>
           </DialogFooter>
         </DialogContent>
