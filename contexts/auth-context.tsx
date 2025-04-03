@@ -23,7 +23,7 @@ export interface User {
 
 interface AuthContextType {
   user: User | null
-  login: (user: User) => Promise<void>
+  login: (user: User, requirePasswordChange?: boolean) => Promise<void>
   logout: () => Promise<void>
   isLoading: boolean
   isOperationStaff: boolean
@@ -55,6 +55,17 @@ const isOperationsStaff = (user?: User | null): boolean => {
   return false
 }
 
+// Add a function to check if the token is expired
+const isTokenExpired = (token: string): boolean => {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]))
+    return payload.exp * 1000 < Date.now()
+  } catch (error) {
+    console.error("Error checking token expiration:", error)
+    return true // If we can't parse the token, consider it expired
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -70,7 +81,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return
       }
 
-      // If we have a token, try to get the user data
+      // Check if token is expired
+      if (isTokenExpired(token)) {
+        console.log("Token expired, logging out user")
+        localStorage.removeItem("token")
+        localStorage.removeItem("user")
+        setUser(null)
+        setIsOperationStaff(false)
+        setIsLoading(false)
+        return
+      }
+
+      // If we have a valid token, try to get the user data
       const savedUser = localStorage.getItem("user")
       if (savedUser) {
         const parsedUser = JSON.parse(savedUser)
@@ -94,9 +116,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  const login = async (userData: User) => {
+  // Add a token refresh check that runs periodically
+  useEffect(() => {
+    // Check token expiration every minute
+    const checkTokenInterval = setInterval(() => {
+      const token = localStorage.getItem("token")
+      if (token && isTokenExpired(token)) {
+        console.log("Token expired during session, logging out user")
+        localStorage.removeItem("token")
+        localStorage.removeItem("user")
+        setUser(null)
+        setIsOperationStaff(false)
+
+        // Show a notification or alert that session has expired
+        if (typeof window !== "undefined") {
+          window.alert("Your session has expired. Please log in again.")
+          window.location.href = "/signin"
+        }
+      }
+    }, 60000) // Check every minute
+
+    return () => clearInterval(checkTokenInterval)
+  }, [])
+
+  // Update the login function to store the password change requirement
+  const login = async (userData: User, requirePasswordChange = false) => {
     try {
       console.log("Login with user data:", userData)
+      console.log("Requires password change:", requirePasswordChange)
 
       // Set user data in a single update to prevent multiple re-renders
       setUser(userData)
@@ -110,6 +157,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Store user data in localStorage
       localStorage.setItem("user", JSON.stringify(userData))
+
+      // Store password change requirement
+      if (requirePasswordChange) {
+        localStorage.setItem("requiresPasswordChange", "true")
+      } else {
+        localStorage.removeItem("requiresPasswordChange")
+      }
 
       // Log the stored user data for debugging
       const storedUser = localStorage.getItem("user")

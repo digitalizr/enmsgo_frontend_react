@@ -61,6 +61,22 @@ const apiRequest = async (endpoint, method = "GET", body = null) => {
     console.log(`Making API request to ${url} with options:`, options)
 
     const response = await fetch(url, options)
+
+    // Check if response indicates unauthorized (token expired or invalid)
+    if (response.status === 401 || response.status === 403) {
+      console.log("Authentication error in API request, redirecting to login")
+      // Clear auth data
+      localStorage.removeItem("token")
+      localStorage.removeItem("user")
+
+      // Redirect to login page
+      if (typeof window !== "undefined") {
+        window.alert("Your session has expired. Please log in again.")
+        window.location.href = "/signin"
+        return null
+      }
+    }
+
     return await handleResponse(response)
   } catch (error) {
     console.error(`Error in apiRequest for ${endpoint}:`, error)
@@ -148,20 +164,33 @@ export const authAPI = {
   },
 
   // Change password for first-time login
-  changePasswordFirstTime: async (userId, currentPassword, newPassword, token) => {
-    const response = await fetch(`${API_BASE_URL}/auth/change-password-first-time`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        userId,
-        currentPassword,
-        newPassword,
-      }),
-    })
-    return handleResponse(response)
+  changePasswordFirstTime: async (params) => {
+    try {
+      const { userId, currentPassword, newPassword, token } = params
+      console.log("Changing password for first-time login:", { userId, token: token ? "token-exists" : "no-token" })
+
+      const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          currentPassword,
+          newPassword,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw errorData.message || "Failed to change password"
+      }
+
+      return await response.json()
+    } catch (error) {
+      console.error("Error in changePasswordFirstTime:", error)
+      throw error
+    }
   },
 
   // Request password reset (for forgotten passwords)
@@ -1288,7 +1317,7 @@ export const usersAPI = {
         const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_-+=<>?"
         let password = ""
         for (let i = 0; i < length; i++) {
-          const randomIndex = Math.floor(Math.random() * charset.length)
+          const randomIndex = Math.floor(Math.floor(Math.random() * charset.length))
           password += charset[randomIndex]
         }
         userData.password = password

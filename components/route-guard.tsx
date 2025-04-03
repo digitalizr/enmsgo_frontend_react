@@ -1,115 +1,105 @@
 "use client"
 
-import type React from "react"
 import { useEffect, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 
-// Define role ID constants
-const ROLE_IDS = {
-  ADMIN: "615b2efa-ea1b-44b5-8753-04dc5cf29b84",
-  CUSTOMER: "526663e2-22a7-4c5a-8e47-299ca2382ac7",
-  // Add other role IDs as needed
-}
+// Define public routes that don't require authentication
+const publicRoutes = ["/signin", "/signup", "/forgot-password", "/set-password"]
 
-export function RouteGuard({ children }: { children: React.ReactNode }) {
-  const { user, isLoading, isOperationStaff } = useAuth()
+export function RouteGuard({ children }) {
   const router = useRouter()
   const pathname = usePathname()
+  const { user, isLoading } = useAuth()
   const [authorized, setAuthorized] = useState(false)
 
   useEffect(() => {
+    // Check if the route is public
+    const isPublicRoute = publicRoutes.some((route) => pathname?.startsWith(route))
+
+    // Check if the user needs to change their password
+    const requiresPasswordChange = localStorage.getItem("requiresPasswordChange") === "true"
+    const tempToken = localStorage.getItem("temp_token")
+
     // Function to check authorization
     const checkAuth = () => {
-      // Skip auth check for public routes
-      if (pathname === "/" || pathname === "/signin" || pathname === "/signup" || pathname === "/set-password") {
+      console.log("Checking auth:", { user, pathname, isPublicRoute, requiresPasswordChange })
+
+      // If the route is public, allow access
+      if (isPublicRoute) {
         setAuthorized(true)
         return
       }
 
-      // Check if user is authenticated
-      if (!user) {
+      // If the user needs to change their password, redirect to set-password
+      if (requiresPasswordChange && tempToken && pathname !== "/set-password") {
+        console.log("User needs to change password, redirecting to /set-password")
+        const userId = user?.id || localStorage.getItem("userId")
+        router.push(`/set-password?userId=${userId}`)
         setAuthorized(false)
-        router.replace("/signin")
         return
       }
 
-      console.log("RouteGuard checking auth for path:", pathname)
-      console.log("User:", user)
-      console.log("Is operations staff from context:", isOperationStaff)
-      console.log("User role_id:", user.role_id)
-
-      // Double-check operations staff status based on role_id
-      const isOpStaff = user.role_id ? user.role_id !== ROLE_IDS.CUSTOMER : false
-
-      console.log("Is operations staff (based on role_id):", isOpStaff)
-
-      // Check role-based access
-      const isOperationsPath = pathname.includes("/operations")
-      const isCustomerPath = pathname.includes("/customer")
-
-      // Use the context value for isOperationStaff
-      if (isOperationStaff) {
-        console.log("User is operations staff")
-
-        if (isCustomerPath) {
-          console.log("Redirecting to operations dashboard")
-          setAuthorized(false)
-          router.replace("/operations/dashboard")
-          return
-        }
-
-        if (isOperationsPath) {
-          console.log("Authorizing for operations path")
-          setAuthorized(true)
-          return
-        }
-
-        // If at root dashboard, redirect to operations dashboard
-        if (pathname === "/dashboard") {
-          console.log("Redirecting to operations dashboard from root")
-          router.replace("/operations/dashboard")
-          return
-        }
-      }
-      // Customers can only access customer paths
-      else {
-        console.log("User is customer")
-
-        if (isOperationsPath) {
-          console.log("Redirecting to customer dashboard")
-          setAuthorized(false)
-          router.replace("/customer/dashboard")
-          return
-        }
-
-        if (isCustomerPath) {
-          console.log("Authorizing for customer path")
-          setAuthorized(true)
-          return
-        }
-
-        // If at root dashboard, redirect to customer dashboard
-        if (pathname === "/dashboard") {
-          console.log("Redirecting to customer dashboard from root")
-          router.replace("/customer/dashboard")
-          return
-        }
+      // If the user is authenticated, allow access to protected routes
+      if (user) {
+        console.log("User is authenticated, allowing access")
+        setAuthorized(true)
+        return
       }
 
-      // Default case - authorize the user
-      console.log("Default authorization")
-      setAuthorized(true)
+      // If not authenticated and not on a public route, redirect to signin
+      console.log("User is not authenticated, redirecting to /signin")
+      router.push("/signin")
+      setAuthorized(false)
     }
 
-    // Only check auth when loading is complete
+    // Only run the check if loading is complete
     if (!isLoading) {
       checkAuth()
     } else {
       setAuthorized(true) // Allow rendering while loading
     }
-  }, [pathname, user, isLoading, router, isOperationStaff])
+  }, [pathname, user, isLoading, router])
 
-  return authorized ? <>{children}</> : null
+  // Check for token expiration periodically
+  useEffect(() => {
+    const checkTokenExpiration = () => {
+      const token = localStorage.getItem("token")
+      if (!token) return
+
+      try {
+        // Parse the JWT token to get the expiration time
+        const base64Url = token.split(".")[1]
+        const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/")
+        const jsonPayload = decodeURIComponent(
+          atob(base64)
+            .split("")
+            .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+            .join(""),
+        )
+
+        const { exp } = JSON.parse(jsonPayload)
+        const currentTime = Math.floor(Date.now() / 1000)
+
+        // If token is expired, log out and redirect
+        if (exp < currentTime) {
+          console.log("Token expired, redirecting to login")
+          localStorage.removeItem("token")
+          localStorage.removeItem("user")
+          router.push("/signin")
+        }
+      } catch (error) {
+        console.error("Error checking token expiration:", error)
+      }
+    }
+
+    // Check token expiration immediately and then every minute
+    checkTokenExpiration()
+    const interval = setInterval(checkTokenExpiration, 60000)
+
+    return () => clearInterval(interval)
+  }, [router])
+
+  return authorized ? children : null
 }
 
