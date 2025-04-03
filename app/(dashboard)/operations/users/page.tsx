@@ -52,7 +52,7 @@ const authHeader = () => {
 }
 
 // Base API URL
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"
+const API_BASE_URL = "https://api.enmsgo.com/api"
 
 export default function UsersPage() {
   const { toast } = useToast()

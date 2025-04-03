@@ -1,9 +1,11 @@
 // API service for the Energy Management SaaS Platform
 // This file serves as the central point for all API calls to the backend
 
+import { getApiUrl } from "./url-helper"
+
 // Base API URL - should be set from environment variables in production
-//const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"
-const API_BASE_URL = "https://api.enmsgo.com/api"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"
+//const API_BASE_URL = "https://api.enmsgo.com/api"
 
 // Helper function for handling API responses
 const handleResponse = async (response) => {
@@ -44,7 +46,7 @@ const authHeader = () => {
 // Helper function for making API requests with error handling
 const apiRequest = async (endpoint, method = "GET", body = null) => {
   try {
-    const url = `${API_BASE_URL}${endpoint}`
+    const url = getApiUrl(endpoint)
     const headers = {
       ...authHeader(),
       "Content-Type": "application/json",
