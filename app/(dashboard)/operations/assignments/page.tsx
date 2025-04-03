@@ -30,7 +30,6 @@ import {
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -788,33 +787,36 @@ export default function AssignmentsPage() {
                           </div>
                         ) : (
                           <div className="space-y-3">
-                            {getAssignmentsForUser(selectedUser).map((assignment) => (
-                              <Collapsible key={assignment.id} className="rounded-md border">
-                                <div className="flex items-center justify-between p-3">
-                                  <div className="flex items-center">
-                                    {assignment.edge_gateway_id ? (
-                                      <>
-                                        <Server className="mr-2 h-4 w-4 text-blue-500" />
+                            {/* Group assignments by edge gateway */}
+                            {/* First, show edge gateways */}
+                            {getAssignmentsForUser(selectedUser)
+                              .filter((assignment) => assignment.edge_gateway_id)
+                              .map((assignment) => (
+                                <div key={assignment.edge_gateway_id} className="rounded-md border">
+                                  <div className="flex items-center justify-between p-3 bg-muted/30">
+                                    <div className="flex items-center">
+                                      <Server className="mr-2 h-5 w-5 text-blue-500" />
+                                      <div>
                                         <span className="font-medium">
                                           Edge Gateway: {assignment.edge_gateway_serial || "Unknown"}
                                         </span>
-                                      </>
-                                    ) : assignment.smart_meters && assignment.smart_meters.length > 0 ? (
-                                      <>
-                                        <CircuitBoard className="mr-2 h-4 w-4 text-green-500" />
-                                        <span className="font-medium">
-                                          Smart Meter: {assignment.smart_meters[0]?.serial_number || "Unknown"}
-                                        </span>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <CircuitBoard className="mr-2 h-4 w-4 text-gray-500" />
-                                        <span className="font-medium">Empty Assignment</span>
-                                      </>
-                                    )}
-                                  </div>
-                                  <div className="flex items-center space-x-2">
-                                    {assignment.edge_gateway_id && (
+                                        <div className="text-xs text-muted-foreground">
+                                          {assignment.smart_meters?.length || 0} connected smart meters
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => {
+                                          setSelectedEdgeGateway(assignment.edge_gateway_id)
+                                          setIsAssignSmartMeterOpen(true)
+                                        }}
+                                      >
+                                        <Plus className="mr-1 h-3 w-3" />
+                                        Add Meter
+                                      </Button>
                                       <Button
                                         variant="ghost"
                                         size="icon"
@@ -825,70 +827,92 @@ export default function AssignmentsPage() {
                                       >
                                         <Trash2 className="h-4 w-4" />
                                       </Button>
-                                    )}
-                                    {!assignment.edge_gateway_id &&
-                                      assignment.smart_meters &&
-                                      assignment.smart_meters.length > 0 && (
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className="text-red-500 hover:text-red-700 hover:bg-red-100"
-                                          onClick={() =>
-                                            handleRemoveDirectSmartMeter(assignment.id, assignment.smart_meters[0].id)
-                                          }
-                                        >
-                                          <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                      )}
+                                    </div>
                                   </div>
-                                </div>
 
-                                {assignment.edge_gateway_id &&
-                                  assignment.smart_meters &&
-                                  assignment.smart_meters.length > 0 && (
-                                    <CollapsibleContent>
-                                      <div className="border-t p-3">
-                                        <h4 className="font-medium text-sm mb-2">Connected Smart Meters</h4>
-                                        <div className="space-y-2">
-                                          {assignment.smart_meters.map((meter) => (
-                                            <div
-                                              key={meter.id}
-                                              className="flex items-center justify-between rounded-md border p-2"
-                                            >
-                                              <div className="flex items-center">
-                                                <CircuitBoard className="mr-2 h-4 w-4 text-green-500" />
-                                                <span>{meter.serial_number}</span>
-                                              </div>
-                                              <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="text-red-500 hover:text-red-700 hover:bg-red-100"
-                                                onClick={() =>
-                                                  handleRemoveSmartMeter(assignment.edge_gateway_id, meter.id)
-                                                }
-                                              >
-                                                <Trash2 className="h-4 w-4" />
-                                              </Button>
-                                            </div>
-                                          ))}
-                                          <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="w-full mt-2"
-                                            onClick={() => {
-                                              setSelectedEdgeGateway(assignment.edge_gateway_id)
-                                              setIsAssignSmartMeterOpen(true)
-                                            }}
+                                  {/* Show connected smart meters indented */}
+                                  {assignment.smart_meters && assignment.smart_meters.length > 0 && (
+                                    <div className="border-t p-2 pl-6">
+                                      <div className="space-y-2">
+                                        {assignment.smart_meters.map((meter) => (
+                                          <div
+                                            key={meter.id}
+                                            className="flex items-center justify-between rounded-md border p-2 bg-background"
                                           >
-                                            <Plus className="mr-2 h-4 w-4" />
-                                            Add Smart Meter
-                                          </Button>
+                                            <div className="flex items-center">
+                                              <CircuitBoard className="mr-2 h-4 w-4 text-green-500" />
+                                              <div>
+                                                <span className="font-medium">{meter.serial_number}</span>
+                                                <div className="text-xs text-muted-foreground">
+                                                  {meter.model?.model_name || "Unknown model"}
+                                                </div>
+                                              </div>
+                                            </div>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              className="text-red-500 hover:text-red-700 hover:bg-red-100"
+                                              onClick={() =>
+                                                handleRemoveSmartMeter(assignment.edge_gateway_id, meter.id)
+                                              }
+                                            >
+                                              <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+
+                            {/* Then, show directly assigned smart meters (not connected to any edge gateway) */}
+                            {getAssignmentsForUser(selectedUser)
+                              .filter(
+                                (assignment) =>
+                                  !assignment.edge_gateway_id &&
+                                  assignment.smart_meters &&
+                                  assignment.smart_meters.length > 0,
+                              )
+                              .map((assignment) => (
+                                <div key={assignment.id} className="rounded-md border">
+                                  <div className="flex items-center justify-between p-3">
+                                    <div className="flex items-center">
+                                      <CircuitBoard className="mr-2 h-4 w-4 text-green-500" />
+                                      <div>
+                                        <span className="font-medium">
+                                          Direct Smart Meter: {assignment.smart_meters[0]?.serial_number || "Unknown"}
+                                        </span>
+                                        <div className="text-xs text-muted-foreground">
+                                          {assignment.smart_meters[0]?.model?.model_name || "Unknown model"}
                                         </div>
                                       </div>
-                                    </CollapsibleContent>
-                                  )}
-                              </Collapsible>
-                            ))}
+                                    </div>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="text-red-500 hover:text-red-700 hover:bg-red-100"
+                                      onClick={() =>
+                                        handleRemoveDirectSmartMeter(assignment.id, assignment.smart_meters[0].id)
+                                      }
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              ))}
+
+                            {/* Add buttons for assigning new devices */}
+                            <div className="flex gap-2 mt-4">
+                              <Button variant="outline" onClick={() => setIsAssignEdgeGatewayOpen(true)}>
+                                <Server className="mr-2 h-4 w-4" />
+                                Assign Edge Gateway
+                              </Button>
+                              <Button variant="outline" onClick={() => setIsAssignSmartMeterDirectOpen(true)}>
+                                <CircuitBoard className="mr-2 h-4 w-4" />
+                                Assign Smart Meter
+                              </Button>
+                            </div>
                           </div>
                         )}
                       </div>
