@@ -409,17 +409,17 @@ export default function UsersPage() {
   const handleSaveChanges = async () => {
     try {
       // Get values from form
-      const firstName = document.getElementById("edit-first-name").value
-      const lastName = document.getElementById("edit-last-name").value
-      const email = document.getElementById("edit-email").value
-      const phone = document.getElementById("edit-phone").value
+      const firstName = document.getElementById("edit-first-name")?.value || selectedUser.first_name
+      const lastName = document.getElementById("edit-last-name")?.value || selectedUser.last_name
+      const email = document.getElementById("edit-email")?.value || selectedUser.email
+      const phone = document.getElementById("edit-phone")?.value || null
 
       // Get role_id from select - fix the selector to get the value properly
-      const roleSelect = document.getElementById("edit-role")
-      const roleId = roleSelect ? roleSelect.value : selectedUser.role_id
+      const roleSelect = document.getElementById("edit-role") as HTMLSelectElement
+      const roleId = roleSelect?.value || selectedUser.role_id
 
       // Get status from select - fix the selector to get the value properly
-      const statusSelect = document.getElementById("edit-status")
+      const statusSelect = document.getElementById("edit-status") as HTMLSelectElement
       const isActive = statusSelect ? statusSelect.value === "active" : selectedUser.is_active
 
       console.log("Form values collected:", {
@@ -432,6 +432,16 @@ export default function UsersPage() {
         selectedCompanyId,
         selectedFacilityId,
       })
+
+      // Validate required fields
+      if (!firstName || !lastName || !email || !roleId) {
+        toast({
+          variant: "destructive",
+          title: "Validation Error",
+          description: "First name, last name, email, and role are required fields.",
+        })
+        return
+      }
 
       // Create update data
       const updateData = {
@@ -458,8 +468,8 @@ export default function UsersPage() {
           console.log("Selected facility:", selectedFacilityId)
 
           // Get department_id from select
-          const departmentSelect = document.getElementById("edit-department")
-          const departmentId = departmentSelect ? departmentSelect.value : null
+          const departmentSelect = document.getElementById("edit-department") as HTMLSelectElement
+          const departmentId = departmentSelect?.value || null
           console.log("Selected department:", departmentId)
 
           // First delete existing relationships
@@ -1155,7 +1165,7 @@ export default function UsersPage() {
                   <Label htmlFor="edit-role">Role</Label>
                   <Select id="edit-role" defaultValue={selectedUser.role_id}>
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder="Select role" />
                     </SelectTrigger>
                     <SelectContent>
                       {roles.map((role) => (
@@ -1435,4 +1445,3 @@ export default function UsersPage() {
     </div>
   )
 }
-

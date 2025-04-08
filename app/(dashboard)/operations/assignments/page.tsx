@@ -14,6 +14,7 @@ import {
   UserCircle,
   Building2,
   LayoutGrid,
+  InfoIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -34,7 +35,17 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
-import { assignmentsAPI, usersAPI, edgeGatewaysAPI, smartMetersAPI } from "@/services/api"
+import { usersAPI, edgeGatewaysAPI, smartMetersAPI } from "@/services/api"
+import { userDeviceAPI } from "@/services/user-device-api" // Import the new API service
+
+// Add this helper function at the top of your component
+const chunkArray = (array, chunkSize) => {
+  const chunks = []
+  for (let i = 0; i < array.length; i += chunkSize) {
+    chunks.push(array.slice(i, i + chunkSize))
+  }
+  return chunks
+}
 
 export default function AssignmentsPage() {
   const { toast } = useToast()
@@ -47,7 +58,8 @@ export default function AssignmentsPage() {
   const [isAssignSmartMeterOpen, setIsAssignSmartMeterOpen] = useState(false)
   const [isAssignSmartMeterDirectOpen, setIsAssignSmartMeterDirectOpen] = useState(false)
   const [selectedSmartMeters, setSelectedSmartMeters] = useState([])
-  const [assignments, setAssignments] = useState([])
+  const [userEdgeGateways, setUserEdgeGateways] = useState([]) // New state for user edge gateways
+  const [userSmartMeters, setUserSmartMeters] = useState([]) // New state for user smart meters
   const [expandedUsers, setExpandedUsers] = useState([])
   const [expandedGateways, setExpandedGateways] = useState([])
   const [users, setUsers] = useState([])
@@ -56,48 +68,82 @@ export default function AssignmentsPage() {
   const [availableSmartMeters, setAvailableSmartMeters] = useState([])
   const [activeTab, setActiveTab] = useState("users")
 
-  // Fetch users from the API
+  // Update the fetchUserCompanies function to handle errors better
+  const fetchUserCompanies = async (userId) => {
+    try {
+      console.log(`Fetching company information for user: ${userId}`)
+      const response = await usersAPI.getUserCompanyRelationships(userId)
+
+      // Check if response has data property and it's an array
+      if (response && response.data && Array.isArray(response.data)) {
+        console.log(`Company data for user ${userId}:`, response.data)
+
+        if (response.data.length === 0) {
+          console.warn(`No company relationships found for user ${userId}`)
+        }
+
+        setUserCompanies((prev) => ({
+          ...prev,
+          [userId]: response.data,
+        }))
+      } else {
+        console.warn(`Invalid response format for user ${userId}:`, response)
+        // Set empty array for this user to prevent further API calls
+        setUserCompanies((prev) => ({
+          ...prev,
+          [userId]: [],
+        }))
+      }
+    } catch (error) {
+      console.error(`Error fetching companies for user ${userId}:`, error)
+      // Set empty array for this user to prevent further API calls
+      setUserCompanies((prev) => ({
+        ...prev,
+        [userId]: [],
+      }))
+      // Don't show toast for every user to avoid spamming the UI
+    } finally {
+      // Make sure loading state is updated even if there's an error
+      if (loading) {
+        setLoading(false)
+      }
+    }
+  }
+
+  // Update the fetchUsers function to handle errors better
   const fetchUsers = async () => {
     try {
+      setLoading(true)
       const response = await usersAPI.getAll()
-      setUsers(response.data)
 
-      // Pre-fetch company relationships for all users
-      for (const user of response.data) {
-        fetchUserCompanies(user.id)
+      if (response && response.data && Array.isArray(response.data)) {
+        setUsers(response.data)
+
+        // Pre-fetch company relationships for all users, but limit to avoid overwhelming the API
+        const userBatches = chunkArray(response.data, 5) // Process 5 users at a time
+
+        for (const batch of userBatches) {
+          await Promise.all(batch.map((user) => fetchUserCompanies(user.id)))
+        }
+      } else {
+        console.error("Invalid response format from usersAPI.getAll:", response)
+        setUsers([])
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to fetch users. Invalid response format.",
+        })
       }
     } catch (error) {
       console.error("Error fetching users:", error)
+      setUsers([])
       toast({
         variant: "destructive",
         title: "Error",
         description: "Failed to fetch users. Please try again.",
       })
-    }
-  }
-
-  // Fetch user companies
-  const fetchUserCompanies = async (userId) => {
-    try {
-      console.log(`Fetching company information for user: ${userId}`)
-      const response = await usersAPI.getUserCompanyRelationships(userId)
-      console.log(`Company data for user ${userId}:`, response.data)
-
-      if (!response.data || response.data.length === 0) {
-        console.warn(`No company relationships found for user ${userId}`)
-      }
-
-      setUserCompanies((prev) => ({
-        ...prev,
-        [userId]: response.data,
-      }))
-    } catch (error) {
-      console.error(`Error fetching companies for user ${userId}:`, error)
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to fetch user's company information.",
-      })
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -131,34 +177,84 @@ export default function AssignmentsPage() {
     }
   }
 
-  // Fetch assignments from the API
-  const fetchAssignments = async () => {
+  // Fetch user edge gateways
+  const fetchUserEdgeGateways = async (userId) => {
     try {
+      if (!userId) return
+
       setLoading(true)
-      const response = await assignmentsAPI.getAll()
-      // Make sure we're setting an array even if the API returns null or undefined
-      setAssignments(response?.data || [])
+      const response = await userDeviceAPI.getUserEdgeGateways(userId)
+      setUserEdgeGateways(response.data || [])
     } catch (error) {
-      console.error("Error fetching assignments:", error)
+      console.error(`Error fetching edge gateways for user ${userId}:`, error)
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to fetch assignments. Please try again.",
+        description: "Failed to fetch user's edge gateways.",
       })
-      // Set empty array on error
-      setAssignments([])
+      setUserEdgeGateways([])
     } finally {
       setLoading(false)
     }
   }
 
-  // Initial data fetch
+  // Fetch user smart meters
+  const fetchUserSmartMeters = async (userId) => {
+    try {
+      if (!userId) return
+
+      setLoading(true)
+      const response = await userDeviceAPI.getUserSmartMeters(userId)
+      setUserSmartMeters(response.data || [])
+    } catch (error) {
+      console.error(`Error fetching smart meters for user ${userId}:`, error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to fetch user's smart meters.",
+      })
+      setUserSmartMeters([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Update the useEffect to handle errors better
   useEffect(() => {
     const fetchData = async () => {
-      await Promise.all([fetchUsers(), fetchAvailableEdgeGateways(), fetchAssignments(), fetchAvailableSmartMeters()])
+      try {
+        setLoading(true)
+
+        // Fetch users first
+        await fetchUsers()
+
+        // Then fetch available devices
+        await Promise.all([fetchAvailableEdgeGateways(), fetchAvailableSmartMeters()])
+      } catch (error) {
+        console.error("Error in initial data fetch:", error)
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to load initial data. Please refresh the page.",
+        })
+      } finally {
+        setLoading(false)
+      }
     }
+
     fetchData()
   }, [])
+
+  // Fetch user devices when a user is selected
+  useEffect(() => {
+    if (selectedUser) {
+      fetchUserEdgeGateways(selectedUser)
+      fetchUserSmartMeters(selectedUser)
+    } else {
+      setUserEdgeGateways([])
+      setUserSmartMeters([])
+    }
+  }, [selectedUser])
 
   // Toggle user expansion
   const toggleUserExpansion = (userId) => {
@@ -180,9 +276,16 @@ export default function AssignmentsPage() {
     }
   }
 
-  // Get primary company for a user
+  // Update the getPrimaryCompanyForUser function to be more defensive
   const getPrimaryCompanyForUser = (userId) => {
-    if (!userCompanies[userId] || !userCompanies[userId].length) return null
+    if (
+      !userId ||
+      !userCompanies[userId] ||
+      !Array.isArray(userCompanies[userId]) ||
+      userCompanies[userId].length === 0
+    ) {
+      return null
+    }
 
     // Find primary company or use the first one
     const primaryCompany = userCompanies[userId].find((rel) => rel.is_primary) || userCompanies[userId][0]
@@ -200,9 +303,6 @@ export default function AssignmentsPage() {
         })
         return
       }
-
-      // Log the selected user and gateway for debugging
-      console.log(`Assigning edge gateway ${selectedEdgeGateway} to user ${selectedUser}`)
 
       // Check if we have company information for this user
       if (!userCompanies[selectedUser] || userCompanies[selectedUser].length === 0) {
@@ -232,18 +332,16 @@ export default function AssignmentsPage() {
         return
       }
 
-      // Call the API to assign the edge gateway
-      console.log("Calling API with parameters:", {
-        companyId: userCompany.company.id,
-        facilityId: userCompany.facility?.id || null,
-        departmentId: userCompany.department?.id || null,
-        gatewayId: selectedEdgeGateway,
+      // Call the API to assign the edge gateway to the user
+      await userDeviceAPI.assignEdgeGatewayToUser(selectedUser, {
+        edge_gateway_id: selectedEdgeGateway,
+        company_id: userCompany.company.id,
+        facility_id: userCompany.facility?.id || null,
+        department_id: userCompany.department?.id || null,
       })
 
-      await assignmentsAPI.assignEdgeGateway(selectedUser, selectedEdgeGateway)
-
       // Refresh the data
-      await Promise.all([fetchAssignments(), fetchAvailableEdgeGateways()])
+      await Promise.all([fetchUserEdgeGateways(selectedUser), fetchAvailableEdgeGateways()])
 
       // Reset selection and close dialog
       setSelectedEdgeGateway(null)
@@ -251,14 +349,14 @@ export default function AssignmentsPage() {
 
       toast({
         title: "Success",
-        description: "Edge gateway assigned successfully.",
+        description: "Edge gateway assigned successfully to user.",
       })
     } catch (error) {
-      console.error("Error assigning edge gateway:", error)
+      console.error("Error assigning edge gateway to user:", error)
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message || "Failed to assign edge gateway. Please try again.",
+        description: error.message || "Failed to assign edge gateway to user. Please try again.",
       })
     }
   }
@@ -266,20 +364,44 @@ export default function AssignmentsPage() {
   // Handle assigning smart meters to edge gateway
   const handleAssignSmartMeters = async () => {
     try {
-      if (!selectedEdgeGateway || selectedSmartMeters.length === 0) {
+      if (!selectedUser || !selectedEdgeGateway || selectedSmartMeters.length === 0) {
         toast({
           variant: "destructive",
           title: "Error",
-          description: "Please select an edge gateway and at least one smart meter.",
+          description: "Please select a user, an edge gateway, and at least one smart meter.",
         })
         return
       }
 
-      // Call the API to assign the smart meters
-      await assignmentsAPI.assignSmartMeters(selectedEdgeGateway, selectedSmartMeters)
+      const userCompany = getPrimaryCompanyForUser(selectedUser)
+      if (!userCompany || !userCompany.company) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "User is not associated with any company.",
+        })
+        return
+      }
+
+      // Assign each smart meter to the user with the edge gateway reference
+      const assignmentPromises = selectedSmartMeters.map((meterId) =>
+        userDeviceAPI.assignSmartMeterToUser(selectedUser, {
+          smart_meter_id: meterId,
+          edge_gateway_id: selectedEdgeGateway,
+          company_id: userCompany.company.id,
+          facility_id: userCompany.facility?.id || null,
+          department_id: userCompany.department?.id || null,
+        }),
+      )
+
+      await Promise.all(assignmentPromises)
 
       // Refresh the data
-      await Promise.all([fetchAssignments(), fetchAvailableSmartMeters()])
+      await Promise.all([
+        fetchUserEdgeGateways(selectedUser),
+        fetchUserSmartMeters(selectedUser),
+        fetchAvailableSmartMeters(),
+      ])
 
       // Reset selection and close dialog
       setSelectedSmartMeters([])
@@ -287,14 +409,14 @@ export default function AssignmentsPage() {
 
       toast({
         title: "Success",
-        description: "Smart meters assigned successfully.",
+        description: "Smart meters assigned successfully to user.",
       })
     } catch (error) {
-      console.error("Error assigning smart meters:", error)
+      console.error("Error assigning smart meters to user:", error)
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message || "Failed to assign smart meters. Please try again.",
+        description: error.message || "Failed to assign smart meters to user. Please try again.",
       })
     }
   }
@@ -312,8 +434,7 @@ export default function AssignmentsPage() {
       }
 
       const userCompany = getPrimaryCompanyForUser(selectedUser)
-
-      if (!userCompany) {
+      if (!userCompany || !userCompany.company) {
         toast({
           variant: "destructive",
           title: "Error",
@@ -322,16 +443,16 @@ export default function AssignmentsPage() {
         return
       }
 
-      // Create a new assignment for the smart meter
-      const assignmentResponse = await assignmentsAPI.create({
+      // Assign the smart meter directly to the user (without edge gateway)
+      await userDeviceAPI.assignSmartMeterToUser(selectedUser, {
+        smart_meter_id: selectedSmartMeter,
         company_id: userCompany.company.id,
         facility_id: userCompany.facility?.id || null,
         department_id: userCompany.department?.id || null,
-        smart_meter_id: selectedSmartMeter,
       })
 
       // Refresh the data
-      await Promise.all([fetchAssignments(), fetchAvailableSmartMeters()])
+      await Promise.all([fetchUserSmartMeters(selectedUser), fetchAvailableSmartMeters()])
 
       // Reset selection and close dialog
       setSelectedSmartMeter(null)
@@ -339,14 +460,14 @@ export default function AssignmentsPage() {
 
       toast({
         title: "Success",
-        description: "Smart meter assigned successfully.",
+        description: "Smart meter assigned successfully to user.",
       })
     } catch (error) {
-      console.error("Error assigning smart meter:", error)
+      console.error("Error assigning smart meter to user:", error)
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message || "Failed to assign smart meter. Please try again.",
+        description: error.message || "Failed to assign smart meter to user. Please try again.",
       })
     }
   }
@@ -360,10 +481,9 @@ export default function AssignmentsPage() {
     }
   }
 
-  // Handle removing edge gateway assignment
-  const handleRemoveEdgeGateway = async (companyId, gatewayId) => {
+  // Handle removing edge gateway assignment from user
+  const handleRemoveEdgeGateway = async (gatewayId) => {
     try {
-      // Make sure we have a selected user
       if (!selectedUser) {
         toast({
           variant: "destructive",
@@ -373,92 +493,77 @@ export default function AssignmentsPage() {
         return
       }
 
-      // Log the parameters for debugging
-      console.log("Removing edge gateway with params:", {
-        userId: selectedUser,
-        gatewayId: gatewayId,
-      })
-
-      // Call the API with both userId and gatewayId
-      await assignmentsAPI.removeEdgeGateway(selectedUser, gatewayId)
+      // Call the API to remove the edge gateway from the user
+      await userDeviceAPI.removeEdgeGatewayFromUser(selectedUser, gatewayId)
 
       // Refresh the data
-      await Promise.all([fetchAssignments(), fetchAvailableEdgeGateways()])
+      await Promise.all([
+        fetchUserEdgeGateways(selectedUser),
+        fetchUserSmartMeters(selectedUser),
+        fetchAvailableEdgeGateways(),
+      ])
 
       toast({
         title: "Success",
-        description: "Edge gateway assignment removed successfully.",
+        description: "Edge gateway removed successfully from user.",
       })
     } catch (error) {
-      console.error("Error removing edge gateway assignment:", error)
+      console.error("Error removing edge gateway from user:", error)
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message || "Failed to remove edge gateway assignment. Please try again.",
+        description: error.message || "Failed to remove edge gateway from user. Please try again.",
       })
     }
   }
 
-  // Handle removing smart meter assignment
-  const handleRemoveSmartMeter = async (gatewayId, meterId) => {
+  // Handle removing smart meter assignment from user
+  const handleRemoveSmartMeter = async (meterId) => {
     try {
-      // Call the API to remove the smart meter assignment
-      await assignmentsAPI.removeSmartMeter(gatewayId, meterId)
+      if (!selectedUser) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "No user selected. Please select a user first.",
+        })
+        return
+      }
+
+      // Call the API to remove the smart meter from the user
+      await userDeviceAPI.removeSmartMeterFromUser(selectedUser, meterId)
 
       // Refresh the data
-      await Promise.all([fetchAssignments(), fetchAvailableSmartMeters()])
+      await Promise.all([fetchUserSmartMeters(selectedUser), fetchAvailableSmartMeters()])
 
       toast({
         title: "Success",
-        description: "Smart meter assignment removed successfully.",
+        description: "Smart meter removed successfully from user.",
       })
     } catch (error) {
-      console.error("Error removing smart meter assignment:", error)
+      console.error("Error removing smart meter from user:", error)
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message || "Failed to remove smart meter assignment. Please try again.",
-      })
-    }
-  }
-
-  // Handle removing directly assigned smart meter
-  const handleRemoveDirectSmartMeter = async (assignmentId, meterId) => {
-    try {
-      // Call the API to delete the assignment
-      await assignmentsAPI.delete(assignmentId)
-
-      // Refresh the data
-      await Promise.all([fetchAssignments(), fetchAvailableSmartMeters()])
-
-      toast({
-        title: "Success",
-        description: "Smart meter assignment removed successfully.",
-      })
-    } catch (error) {
-      console.error("Error removing direct smart meter assignment:", error)
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message || "Failed to remove smart meter assignment. Please try again.",
+        description: error.message || "Failed to remove smart meter from user. Please try again.",
       })
     }
   }
 
   // Get total counts
-  const totalAssignedEdgeGateways =
-    assignments?.reduce((total, assignment) => total + (assignment.edge_gateway_id ? 1 : 0), 0) || 0
-
-  const totalAssignedSmartMeters =
-    assignments?.reduce((total, assignment) => total + (assignment.smart_meters?.length || 0), 0) || 0
+  const totalAssignedEdgeGateways = userEdgeGateways.length
+  const totalAssignedSmartMeters = userSmartMeters.length
 
   // Filter users based on search term
-  const filteredUsers = users.filter(
-    (user) =>
-      `${user.first_name} ${user.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.company?.name?.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+  const filteredUsers = users.filter((user) => {
+    const fullName = `${user.first_name || ""} ${user.last_name || ""}`.toLowerCase()
+    const email = (user.email || "").toLowerCase()
+    const companyName = (user.company?.name || "").toLowerCase()
+    const searchTermLower = searchTerm.toLowerCase()
+
+    return (
+      fullName.includes(searchTermLower) || email.includes(searchTermLower) || companyName.includes(searchTermLower)
+    )
+  })
 
   // Get user name by ID
   const getUserName = (userId) => {
@@ -468,29 +573,26 @@ export default function AssignmentsPage() {
 
   // Get company name by ID
   const getCompanyName = (companyId) => {
-    // Find any assignment with this company ID
-    const assignment = assignments.find((a) => a.company_id === companyId)
-    return assignment ? assignment.company_name : "Unknown Company"
-  }
+    // Find any user with this company ID
+    const user = users.find((u) => {
+      const company = getPrimaryCompanyForUser(u.id)
+      return company && company.company && company.company.id === companyId
+    })
 
-  // Get assignments for a user
-  const getAssignmentsForUser = (userId) => {
-    // If no user is selected, return empty array
-    if (!userId) return []
+    if (user) {
+      const company = getPrimaryCompanyForUser(user.id)
+      return company.company.name
+    }
 
-    const userCompany = getPrimaryCompanyForUser(userId)
-    if (!userCompany || !userCompany.company) return []
-
-    // Only return assignments that actually belong to this user's company
-    return assignments.filter((a) => a.company_id === userCompany.company.id)
+    return "Unknown Company"
   }
 
   return (
     <div className="flex flex-col gap-4 p-4 md:p-8">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Device Assignments</h1>
-          <p className="text-muted-foreground">Manage device assignments to users, edge gateways, and smart meters</p>
+          <h1 className="text-3xl font-bold tracking-tight">User Device Assignments</h1>
+          <p className="text-muted-foreground">Manage device assignments directly to users</p>
         </div>
       </div>
 
@@ -531,8 +633,8 @@ export default function AssignmentsPage() {
             <Building className="h-4 w-4 text-purple-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{new Set(assignments?.map((a) => a?.company_id) || []).size}</div>
-            <p className="text-xs text-muted-foreground">With active devices</p>
+            <div className="text-2xl font-bold">{Object.keys(userCompanies).length}</div>
+            <p className="text-xs text-muted-foreground">With active users</p>
           </CardContent>
         </Card>
       </div>
@@ -578,6 +680,21 @@ export default function AssignmentsPage() {
                     <div className="flex h-40 items-center justify-center">
                       <Loader2 className="h-8 w-8 animate-spin text-primary" />
                     </div>
+                  ) : users.length === 0 ? (
+                    <div className="flex h-40 flex-col items-center justify-center text-center p-4">
+                      <User className="h-10 w-10 text-muted-foreground mb-2" />
+                      <p className="text-muted-foreground">
+                        No users found. Please check your connection or try again later.
+                      </p>
+                      <Button variant="outline" size="sm" className="mt-4" onClick={() => fetchUsers()}>
+                        Retry
+                      </Button>
+                    </div>
+                  ) : filteredUsers.length === 0 ? (
+                    <div className="flex h-40 flex-col items-center justify-center text-center p-4">
+                      <Search className="h-10 w-10 text-muted-foreground mb-2" />
+                      <p className="text-muted-foreground">No users match your search. Try a different search term.</p>
+                    </div>
                   ) : (
                     <div className="space-y-2">
                       {filteredUsers.map((user) => (
@@ -590,10 +707,10 @@ export default function AssignmentsPage() {
                         >
                           <div className="flex flex-col">
                             <span className="font-medium">
-                              {user.first_name} {user.last_name}
+                              {user.first_name || ""} {user.last_name || ""}
                             </span>
-                            <span className="text-sm text-muted-foreground">{user.email}</span>
-                            <span className="text-xs text-muted-foreground">{user.company?.name}</span>
+                            <span className="text-sm text-muted-foreground">{user.email || "No email"}</span>
+                            <span className="text-xs text-muted-foreground">{user.company?.name || "No company"}</span>
                           </div>
                           {selectedUser === user.id && <CheckCircle className="h-5 w-5 text-primary" />}
                         </div>
@@ -767,11 +884,18 @@ export default function AssignmentsPage() {
                         </div>
                       </div>
 
+                      <div className="mb-4 rounded-md bg-blue-50 p-3 text-blue-800 text-sm">
+                        <p className="flex items-center">
+                          <InfoIcon className="h-4 w-4 mr-2" />
+                          Devices are now assigned directly to users, giving them personal ownership and responsibility.
+                        </p>
+                      </div>
+
                       {/* User's devices */}
                       <div className="rounded-md border p-4">
                         <h3 className="font-semibold mb-3">Assigned Devices</h3>
 
-                        {getAssignmentsForUser(selectedUser).length === 0 ? (
+                        {userEdgeGateways.length === 0 && userSmartMeters.length === 0 ? (
                           <div className="rounded-md border border-dashed p-4 text-center">
                             <p className="text-sm text-muted-foreground">No devices assigned to this user</p>
                             <div className="flex justify-center gap-2 mt-2">
@@ -787,54 +911,56 @@ export default function AssignmentsPage() {
                           </div>
                         ) : (
                           <div className="space-y-3">
-                            {/* Group assignments by edge gateway */}
-                            {/* First, show edge gateways */}
-                            {getAssignmentsForUser(selectedUser)
-                              .filter((assignment) => assignment.edge_gateway_id)
-                              .map((assignment) => (
-                                <div key={assignment.edge_gateway_id} className="rounded-md border">
-                                  <div className="flex items-center justify-between p-3 bg-muted/30">
-                                    <div className="flex items-center">
-                                      <Server className="mr-2 h-5 w-5 text-blue-500" />
-                                      <div>
-                                        <span className="font-medium">
-                                          Edge Gateway: {assignment.edge_gateway_serial || "Unknown"}
-                                        </span>
-                                        <div className="text-xs text-muted-foreground">
-                                          {assignment.smart_meters?.length || 0} connected smart meters
-                                        </div>
+                            {/* Show edge gateways */}
+                            {userEdgeGateways.map((gateway) => (
+                              <div key={gateway.id} className="rounded-md border">
+                                <div className="flex items-center justify-between p-3 bg-muted/30">
+                                  <div className="flex items-center">
+                                    <Server className="mr-2 h-5 w-5 text-blue-500" />
+                                    <div>
+                                      <span className="font-medium">
+                                        Edge Gateway: {gateway.serial_number || "Unknown"}
+                                      </span>
+                                      <div className="text-xs text-muted-foreground">
+                                        {
+                                          userSmartMeters.filter((m) => m.edge_gateway_id === gateway.edge_gateway_id)
+                                            .length
+                                        }{" "}
+                                        connected smart meters
                                       </div>
                                     </div>
-                                    <div className="flex items-center space-x-2">
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => {
-                                          setSelectedEdgeGateway(assignment.edge_gateway_id)
-                                          setIsAssignSmartMeterOpen(true)
-                                        }}
-                                      >
-                                        <Plus className="mr-1 h-3 w-3" />
-                                        Add Meter
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="text-red-500 hover:text-red-700 hover:bg-red-100"
-                                        onClick={() =>
-                                          handleRemoveEdgeGateway(assignment.company_id, assignment.edge_gateway_id)
-                                        }
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </div>
                                   </div>
+                                  <div className="flex items-center space-x-2">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => {
+                                        setSelectedEdgeGateway(gateway.edge_gateway_id)
+                                        setIsAssignSmartMeterOpen(true)
+                                      }}
+                                    >
+                                      <Plus className="mr-1 h-3 w-3" />
+                                      Add Meter
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="text-red-500 hover:text-red-700 hover:bg-red-100"
+                                      onClick={() => handleRemoveEdgeGateway(gateway.edge_gateway_id)}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </div>
 
-                                  {/* Show connected smart meters indented */}
-                                  {assignment.smart_meters && assignment.smart_meters.length > 0 && (
-                                    <div className="border-t p-2 pl-6">
-                                      <div className="space-y-2">
-                                        {assignment.smart_meters.map((meter) => (
+                                {/* Show connected smart meters indented */}
+                                {userSmartMeters.filter((m) => m.edge_gateway_id === gateway.edge_gateway_id).length >
+                                  0 && (
+                                  <div className="border-t p-2 pl-6">
+                                    <div className="space-y-2">
+                                      {userSmartMeters
+                                        .filter((m) => m.edge_gateway_id === gateway.edge_gateway_id)
+                                        .map((meter) => (
                                           <div
                                             key={meter.id}
                                             className="flex items-center justify-between rounded-md border p-2 bg-background"
@@ -844,7 +970,7 @@ export default function AssignmentsPage() {
                                               <div>
                                                 <span className="font-medium">{meter.serial_number}</span>
                                                 <div className="text-xs text-muted-foreground">
-                                                  {meter.model?.model_name || "Unknown model"}
+                                                  {meter.model_name || "Unknown model"}
                                                 </div>
                                               </div>
                                             </div>
@@ -852,39 +978,32 @@ export default function AssignmentsPage() {
                                               variant="ghost"
                                               size="icon"
                                               className="text-red-500 hover:text-red-700 hover:bg-red-100"
-                                              onClick={() =>
-                                                handleRemoveSmartMeter(assignment.edge_gateway_id, meter.id)
-                                              }
+                                              onClick={() => handleRemoveSmartMeter(meter.smart_meter_id)}
                                             >
                                               <Trash2 className="h-4 w-4" />
                                             </Button>
                                           </div>
                                         ))}
-                                      </div>
                                     </div>
-                                  )}
-                                </div>
-                              ))}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
 
-                            {/* Then, show directly assigned smart meters (not connected to any edge gateway) */}
-                            {getAssignmentsForUser(selectedUser)
-                              .filter(
-                                (assignment) =>
-                                  !assignment.edge_gateway_id &&
-                                  assignment.smart_meters &&
-                                  assignment.smart_meters.length > 0,
-                              )
-                              .map((assignment) => (
-                                <div key={assignment.id} className="rounded-md border">
+                            {/* Show directly assigned smart meters (not connected to any edge gateway) */}
+                            {userSmartMeters
+                              .filter((meter) => !meter.edge_gateway_id)
+                              .map((meter) => (
+                                <div key={meter.id} className="rounded-md border">
                                   <div className="flex items-center justify-between p-3">
                                     <div className="flex items-center">
                                       <CircuitBoard className="mr-2 h-4 w-4 text-green-500" />
                                       <div>
                                         <span className="font-medium">
-                                          Direct Smart Meter: {assignment.smart_meters[0]?.serial_number || "Unknown"}
+                                          Direct Smart Meter: {meter.serial_number || "Unknown"}
                                         </span>
                                         <div className="text-xs text-muted-foreground">
-                                          {assignment.smart_meters[0]?.model?.model_name || "Unknown model"}
+                                          {meter.model_name || "Unknown model"}
                                         </div>
                                       </div>
                                     </div>
@@ -892,9 +1011,7 @@ export default function AssignmentsPage() {
                                       variant="ghost"
                                       size="icon"
                                       className="text-red-500 hover:text-red-700 hover:bg-red-100"
-                                      onClick={() =>
-                                        handleRemoveDirectSmartMeter(assignment.id, assignment.smart_meters[0].id)
-                                      }
+                                      onClick={() => handleRemoveSmartMeter(meter.smart_meter_id)}
                                     >
                                       <Trash2 className="h-4 w-4" />
                                     </Button>
@@ -927,7 +1044,7 @@ export default function AssignmentsPage() {
         <TabsContent value="companies" className="mt-4">
           <Card>
             <CardHeader>
-              <CardTitle>Company Assignments</CardTitle>
+              <CardTitle>Company Device Distribution</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="rounded-md border">
@@ -935,9 +1052,9 @@ export default function AssignmentsPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Company</TableHead>
+                      <TableHead>Users</TableHead>
                       <TableHead>Edge Gateways</TableHead>
                       <TableHead>Smart Meters</TableHead>
-                      <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -949,47 +1066,33 @@ export default function AssignmentsPage() {
                           </div>
                         </TableCell>
                       </TableRow>
-                    ) : assignments.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={4} className="h-24 text-center">
-                          No assignments found.
-                        </TableCell>
-                      </TableRow>
                     ) : (
-                      // Group assignments by company
+                      // Group by company
                       Object.entries(
-                        assignments.reduce((acc, assignment) => {
-                          if (!acc[assignment.company_id]) {
-                            acc[assignment.company_id] = {
-                              company_id: assignment.company_id,
-                              company_name: assignment.company_name,
+                        users.reduce((acc, user) => {
+                          const company = getPrimaryCompanyForUser(user.id)
+                          if (!company || !company.company) return acc
+
+                          const companyId = company.company.id
+                          if (!acc[companyId]) {
+                            acc[companyId] = {
+                              id: companyId,
+                              name: company.company.name,
+                              users: 0,
                               edge_gateways: 0,
                               smart_meters: 0,
                             }
                           }
 
-                          if (assignment.edge_gateway_id) {
-                            acc[assignment.company_id].edge_gateways++
-                          }
-
-                          acc[assignment.company_id].smart_meters += assignment.smart_meters?.length || 0
-
+                          acc[companyId].users++
                           return acc
                         }, {}),
                       ).map(([companyId, data]) => (
                         <TableRow key={companyId}>
-                          <TableCell className="font-medium">{data.company_name}</TableCell>
-                          <TableCell>{data.edge_gateways}</TableCell>
-                          <TableCell>{data.smart_meters}</TableCell>
-                          <TableCell>
-                            {data.edge_gateways > 0 || data.smart_meters > 0 ? (
-                              <Badge variant="default" className="bg-green-500">
-                                Active
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline">Pending</Badge>
-                            )}
-                          </TableCell>
+                          <TableCell className="font-medium">{data.name}</TableCell>
+                          <TableCell>{data.users}</TableCell>
+                          <TableCell>{userEdgeGateways.filter((g) => g.company_id === companyId).length}</TableCell>
+                          <TableCell>{userSmartMeters.filter((m) => m.company_id === companyId).length}</TableCell>
                         </TableRow>
                       ))
                     )}
@@ -1013,27 +1116,26 @@ export default function AssignmentsPage() {
                       <div className="flex h-40 items-center justify-center">
                         <Loader2 className="h-8 w-8 animate-spin text-primary" />
                       </div>
-                    ) : assignments.filter((a) => a.edge_gateway_id).length === 0 ? (
+                    ) : userEdgeGateways.length === 0 ? (
                       <div className="rounded-md border border-dashed p-4 text-center">
                         <p className="text-sm text-muted-foreground">No edge gateways assigned</p>
                       </div>
                     ) : (
-                      assignments
-                        .filter((a) => a.edge_gateway_id)
-                        .map((assignment) => (
-                          <div key={assignment.edge_gateway_id} className="rounded-md border p-3">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center">
-                                <Server className="mr-2 h-4 w-4 text-blue-500" />
-                                <span className="font-medium">{assignment.edge_gateway_serial || "Unknown"}</span>
-                              </div>
-                              <Badge variant="outline">{assignment.company_name}</Badge>
+                      userEdgeGateways.map((gateway) => (
+                        <div key={gateway.id} className="rounded-md border p-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center">
+                              <Server className="mr-2 h-4 w-4 text-blue-500" />
+                              <span className="font-medium">{gateway.serial_number || "Unknown"}</span>
                             </div>
-                            <div className="mt-2 text-sm text-muted-foreground">
-                              {assignment.smart_meters?.length || 0} connected smart meters
-                            </div>
+                            <Badge variant="outline">{gateway.company_name}</Badge>
                           </div>
-                        ))
+                          <div className="mt-2 text-sm text-muted-foreground">
+                            Assigned to: {users.find((u) => u.id === gateway.user_id)?.first_name}{" "}
+                            {users.find((u) => u.id === gateway.user_id)?.last_name}
+                          </div>
+                        </div>
+                      ))
                     )}
                   </div>
                 </ScrollArea>
@@ -1051,38 +1153,33 @@ export default function AssignmentsPage() {
                       <div className="flex h-40 items-center justify-center">
                         <Loader2 className="h-8 w-8 animate-spin text-primary" />
                       </div>
-                    ) : assignments.filter((a) => a.smart_meters?.length > 0).length === 0 ? (
+                    ) : userSmartMeters.length === 0 ? (
                       <div className="rounded-md border border-dashed p-4 text-center">
                         <p className="text-sm text-muted-foreground">No smart meters assigned</p>
                       </div>
                     ) : (
-                      assignments
-                        .flatMap((assignment) =>
-                          (assignment.smart_meters || []).map((meter) => ({
-                            ...meter,
-                            company_name: assignment.company_name,
-                            edge_gateway_id: assignment.edge_gateway_id,
-                            edge_gateway_serial: assignment.edge_gateway_serial,
-                          })),
-                        )
-                        .map((meter) => (
-                          <div key={meter.id} className="rounded-md border p-3">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center">
-                                <CircuitBoard className="mr-2 h-4 w-4 text-green-500" />
-                                <span className="font-medium">{meter.serial_number}</span>
-                              </div>
-                              <Badge variant="outline">{meter.company_name}</Badge>
+                      userSmartMeters.map((meter) => (
+                        <div key={meter.id} className="rounded-md border p-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center">
+                              <CircuitBoard className="mr-2 h-4 w-4 text-green-500" />
+                              <span className="font-medium">{meter.serial_number}</span>
                             </div>
-                            <div className="mt-2 text-sm text-muted-foreground">
-                              {meter.edge_gateway_id ? (
-                                <span>Connected to gateway: {meter.edge_gateway_serial}</span>
-                              ) : (
-                                <span>Directly assigned</span>
-                              )}
-                            </div>
+                            <Badge variant="outline">{meter.company_name}</Badge>
                           </div>
-                        ))
+                          <div className="mt-2 text-sm text-muted-foreground">
+                            {meter.edge_gateway_id ? (
+                              <span>Connected to gateway: {meter.edge_gateway_serial}</span>
+                            ) : (
+                              <span>Directly assigned</span>
+                            )}
+                          </div>
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            Assigned to: {users.find((u) => u.id === meter.user_id)?.first_name}{" "}
+                            {users.find((u) => u.id === meter.user_id)?.last_name}
+                          </div>
+                        </div>
+                      ))
                     )}
                   </div>
                 </ScrollArea>
@@ -1143,4 +1240,3 @@ export default function AssignmentsPage() {
     </div>
   )
 }
-

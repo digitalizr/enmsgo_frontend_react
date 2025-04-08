@@ -84,7 +84,7 @@ const apiRequest = async (endpoint, method = "GET", body = null) => {
   }
 }
 
-// Authentication API
+// #######################################Authentication API#############################
 export const authAPI = {
   login: async (email, password) => {
     try {
@@ -204,7 +204,7 @@ export const authAPI = {
   },
 }
 
-// Smart Meters API
+// ##########################################Smart Meters API##################################
 export const smartMetersAPI = {
   getAll: async (params = {}) => {
     try {
@@ -366,7 +366,7 @@ export const smartMetersAPI = {
   },
 }
 
-// Edge Gateways API
+// ######################################################Edge Gateways API#############################
 export const edgeGatewaysAPI = {
   getAll: async (params = {}) => {
     try {
@@ -655,7 +655,7 @@ export const edgeGatewaysAPI = {
   },
 }
 
-// Companies API
+// ###############################################Companies API#########################################
 export const companiesAPI = {
   getAll: async (params = {}) => {
     try {
@@ -1187,7 +1187,7 @@ export const companiesAPI = {
   },
 }
 
-// Device Models API
+// #########################################Device Models API##########################
 export const deviceModelsAPI = {
   getAll: async (params = {}) => {
     const queryString = new URLSearchParams(params).toString()
@@ -1451,14 +1451,9 @@ export const usersAPI = {
     }
   },
 
-  // User-Company relationship methods
+  // ###################################User-Company relationship methods###############################
   createUserCompanyRelationship: async (data) => {
     try {
-      // Let's check the createUserCompanyRelationship function to ensure it's not creating assignments
-      // Find the createUserCompanyRelationship function (around line 1400-1450)
-
-      // Make sure the function is only creating the user-company relationship and not assignments
-      // The function looks correct, so the issue is likely elsewhere
       console.log("Creating user-company relationship with data:", data)
       const response = await fetch(`${API_BASE_URL}/user-companies`, {
         method: "POST",
@@ -1565,7 +1560,7 @@ export const usersAPI = {
   },
 }
 
-// Assignments API
+// ############################################Assignments API##############################
 export const assignmentsAPI = {
   getAll: async () => {
     try {
@@ -2022,4 +2017,9 @@ export const manufacturersAPI = {
     }
   },
 }
+
+
+
+
+
 

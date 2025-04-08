@@ -47,7 +47,7 @@ CREATE TABLE role_permissions (
     PRIMARY KEY (role_id, permission_id)
 );
 
--- Users and authentication
+-- ##############################################Users and authentication##############################
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     first_name VARCHAR(100) NOT NULL,
@@ -67,7 +67,7 @@ CREATE TABLE users (
     updated_by UUID
 );
 
--- Companies and organizational structure
+-- #########################Companies and organizational structure#####################################
 CREATE TABLE companies (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
@@ -110,7 +110,7 @@ CREATE TABLE departments (
     updated_by UUID REFERENCES users(id)
 );
 
--- User-company relationships
+-- #########################User-company relationships#####################################
 CREATE TABLE user_companies (
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
@@ -122,7 +122,7 @@ CREATE TABLE user_companies (
     PRIMARY KEY (user_id, company_id)
 );
 
--- Device models and manufacturers
+-- ##############################Device models and manufacturers#############################
 CREATE TABLE manufacturers (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL UNIQUE,
@@ -148,7 +148,7 @@ CREATE TABLE device_models (
     UNIQUE(manufacturer_id, model_name)
 );
 
--- Smart meters
+-- ###############################################Smart meters###############################
 CREATE TABLE smart_meters (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     serial_number VARCHAR(255) NOT NULL UNIQUE,
@@ -164,7 +164,7 @@ CREATE TABLE smart_meters (
     updated_by UUID REFERENCES users(id)
 );
 
--- Edge gateways
+-- ############################################Edge gateways#################################
 -- Edge Gateways Table
 CREATE TABLE IF NOT EXISTS edge_gateways (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -181,7 +181,7 @@ CREATE TABLE IF NOT EXISTS edge_gateways (
   updated_by UUID REFERENCES users(id)
 );
 
--- Edge Gateway IP Addresses Table
+-- 3333333333333333333333333333333333333Edge Gateway IP Addresses Table333333333333333333333333333
 CREATE TABLE IF NOT EXISTS edge_gateway_ip_addresses (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   edge_gateway_id UUID NOT NULL REFERENCES edge_gateways(id) ON DELETE CASCADE,
@@ -230,7 +230,7 @@ CREATE TABLE IF NOT EXISTS edge_gateway_connection_details (
 );
 
 
--- Assignments
+-- #########################################Assignments####################################
 CREATE TABLE assignments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
@@ -254,7 +254,7 @@ CREATE TABLE smart_meter_assignments (
     updated_by UUID REFERENCES users(id),
     UNIQUE(smart_meter_id)
 );
-
+-- ###########################################################################################
 -- Subscription plans
 CREATE TABLE subscription_plans (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
