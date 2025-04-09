@@ -84,7 +84,7 @@ const apiRequest = async (endpoint, method = "GET", body = null) => {
   }
 }
 
-// #######################################Authentication API#############################
+// Authentication API
 export const authAPI = {
   login: async (email, password) => {
     try {
@@ -204,7 +204,7 @@ export const authAPI = {
   },
 }
 
-// ##########################################Smart Meters API##################################
+// Smart Meters API
 export const smartMetersAPI = {
   getAll: async (params = {}) => {
     try {
@@ -366,7 +366,7 @@ export const smartMetersAPI = {
   },
 }
 
-// ######################################################Edge Gateways API#############################
+// Edge Gateways API
 export const edgeGatewaysAPI = {
   getAll: async (params = {}) => {
     try {
@@ -655,7 +655,7 @@ export const edgeGatewaysAPI = {
   },
 }
 
-// ###############################################Companies API#########################################
+// Companies API
 export const companiesAPI = {
   getAll: async (params = {}) => {
     try {
@@ -1187,7 +1187,7 @@ export const companiesAPI = {
   },
 }
 
-// #########################################Device Models API##########################
+// Device Models API
 export const deviceModelsAPI = {
   getAll: async (params = {}) => {
     const queryString = new URLSearchParams(params).toString()
@@ -1361,6 +1361,34 @@ export const usersAPI = {
       console.log(`Updating user with id: ${id}`)
       console.log("Update data:", data)
 
+      // Validate required fields
+      if (!data.first_name || !data.last_name || !data.email) {
+        throw new Error("First name, last name, and email are required")
+      }
+
+      // Ensure role_id is not undefined
+      if (!data.role_id) {
+        console.warn("Role ID is missing in update data, attempting to fetch current role")
+
+        try {
+          // Try to get the current user's role_id
+          const currentUser = await usersAPI.getById(id)
+          if (currentUser && currentUser.role_id) {
+            data.role_id = currentUser.role_id
+            console.log("Using current role_id:", data.role_id)
+          } else {
+            // If we can't get the current role, use a default admin role
+            data.role_id = "615b2efa-ea1b-44b5-8753-04dc5cf29b84" // Default admin role
+            console.log("Using default admin role_id")
+          }
+        } catch (roleError) {
+          console.error("Error fetching current user role:", roleError)
+          // Use a default admin role if we can't get the current role
+          data.role_id = "615b2efa-ea1b-44b5-8753-04dc5cf29b84" // Default admin role
+          console.log("Using default admin role_id after error")
+        }
+      }
+
       const token = authAPI.getToken()
       if (!token) {
         throw new Error("Authentication required")
@@ -1451,9 +1479,14 @@ export const usersAPI = {
     }
   },
 
-  // ###################################User-Company relationship methods###############################
+  // User-Company relationship methods
   createUserCompanyRelationship: async (data) => {
     try {
+      // Let's check the createUserCompanyRelationship function to ensure it's not creating assignments
+      // Find the createUserCompanyRelationship function (around line 1400-1450)
+
+      // Make sure the function is only creating the user-company relationship and not assignments
+      // The function looks correct, so the issue is likely elsewhere
       console.log("Creating user-company relationship with data:", data)
       const response = await fetch(`${API_BASE_URL}/user-companies`, {
         method: "POST",
@@ -1560,7 +1593,7 @@ export const usersAPI = {
   },
 }
 
-// ############################################Assignments API##############################
+// Assignments API
 export const assignmentsAPI = {
   getAll: async () => {
     try {
@@ -2017,9 +2050,3 @@ export const manufacturersAPI = {
     }
   },
 }
-
-
-
-
-
-

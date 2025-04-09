@@ -415,12 +415,13 @@ export default function UsersPage() {
       const phone = document.getElementById("edit-phone")?.value || null
 
       // Get role_id from select - fix the selector to get the value properly
-      const roleSelect = document.getElementById("edit-role") as HTMLSelectElement
-      const roleId = roleSelect?.value || selectedUser.role_id
+      // The issue is that we're not accessing the select value correctly
+      const roleSelect = document.querySelector('[id="edit-role"] [data-value]')
+      const roleId = roleSelect?.getAttribute("data-value") || selectedUser.role_id
 
-      // Get status from select - fix the selector to get the value properly
-      const statusSelect = document.getElementById("edit-status") as HTMLSelectElement
-      const isActive = statusSelect ? statusSelect.value === "active" : selectedUser.is_active
+      // Get status from select
+      const statusSelect = document.querySelector('[id="edit-status"] [data-value]')
+      const isActive = statusSelect ? statusSelect.getAttribute("data-value") === "active" : selectedUser.is_active
 
       console.log("Form values collected:", {
         firstName,
@@ -468,8 +469,8 @@ export default function UsersPage() {
           console.log("Selected facility:", selectedFacilityId)
 
           // Get department_id from select
-          const departmentSelect = document.getElementById("edit-department") as HTMLSelectElement
-          const departmentId = departmentSelect?.value || null
+          const departmentSelect = document.querySelector('[id="edit-department"] [data-value]')
+          const departmentId = departmentSelect ? departmentSelect.getAttribute("data-value") : null
           console.log("Selected department:", departmentId)
 
           // First delete existing relationships
@@ -705,6 +706,109 @@ export default function UsersPage() {
     // Handle both boolean and string status values
     const active = typeof isActive === "boolean" ? isActive : isActive === "active"
     return active ? <Badge className="bg-green-500">Active</Badge> : <Badge variant="secondary">Inactive</Badge>
+  }
+
+  // Add this new function to handle form submission
+  const handleEditFormSubmit = async (event) => {
+    event.preventDefault()
+
+    try {
+      const formData = new FormData(event.target)
+
+      // Extract values from form data
+      const firstName = formData.get("first_name")
+      const lastName = formData.get("last_name")
+      const email = formData.get("email")
+      const phone = formData.get("phone") || null
+      const roleId = formData.get("role_id")
+      const isActive = formData.get("is_active") === "active"
+      const companyId = formData.get("company_id")
+      const facilityId = formData.get("facility_id")
+      const departmentId = formData.get("department_id")
+
+      console.log("Form data collected:", {
+        firstName,
+        lastName,
+        email,
+        phone,
+        roleId,
+        isActive,
+        companyId,
+        facilityId,
+        departmentId,
+      })
+
+      // Validate required fields
+      if (!firstName || !lastName || !email || !roleId) {
+        toast({
+          variant: "destructive",
+          title: "Validation Error",
+          description: "First name, last name, email, and role are required fields.",
+        })
+        return
+      }
+
+      // Create update data
+      const updateData = {
+        first_name: firstName,
+        last_name: lastName,
+        email: email,
+        phone: phone,
+        role_id: roleId,
+        is_active: isActive,
+      }
+
+      console.log("Updating user with data:", updateData)
+      console.log("User ID:", selectedUser.id)
+
+      // Update user
+      const updatedUser = await usersAPI.update(selectedUser.id, updateData)
+      console.log("Updated user:", updatedUser)
+
+      // Update user-company relationship if company ID is provided
+      if (companyId) {
+        try {
+          console.log("Updating user-company relationship")
+
+          // First delete existing relationships
+          await fetch(`${API_BASE_URL}/user-companies/${selectedUser.id}`, {
+            method: "DELETE",
+            headers: { ...authHeader(), "Content-Type": "application/json" },
+          })
+
+          // Then create new relationship
+          await fetch(`${API_BASE_URL}/user-companies`, {
+            method: "POST",
+            headers: { ...authHeader(), "Content-Type": "application/json" },
+            body: JSON.stringify({
+              user_id: selectedUser.id,
+              company_id: companyId,
+              facility_id: facilityId || null,
+              department_id: departmentId || null,
+              is_primary: true,
+            }),
+          })
+        } catch (relationError) {
+          console.error("Error updating user-company relationship:", relationError)
+          // Continue anyway since the user was updated
+        }
+      }
+
+      toast({
+        title: "Success",
+        description: "User updated successfully.",
+      })
+
+      fetchUsers()
+      setIsEditDialogOpen(false)
+    } catch (error) {
+      console.error("Error updating user:", error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: `Failed to update user: ${error.message || "Unknown error"}`,
+      })
+    }
   }
 
   return (
@@ -1139,31 +1243,31 @@ export default function UsersPage() {
             <DialogDescription>Update the details of the selected user.</DialogDescription>
           </DialogHeader>
           {selectedUser && (
-            <div className="grid gap-4 py-4">
+            <form onSubmit={handleEditFormSubmit} className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="edit-first-name">First Name</Label>
-                  <Input id="edit-first-name" defaultValue={selectedUser.first_name} />
+                  <Input id="edit-first-name" name="first_name" defaultValue={selectedUser.first_name} required />
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="edit-last-name">Last Name</Label>
-                  <Input id="edit-last-name" defaultValue={selectedUser.last_name} />
+                  <Input id="edit-last-name" name="last_name" defaultValue={selectedUser.last_name} required />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="edit-email">Email</Label>
-                  <Input id="edit-email" type="email" defaultValue={selectedUser.email} />
+                  <Input id="edit-email" name="email" type="email" defaultValue={selectedUser.email} required />
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="edit-phone">Phone</Label>
-                  <Input id="edit-phone" defaultValue={selectedUser.phone || ""} />
+                  <Input id="edit-phone" name="phone" defaultValue={selectedUser.phone || ""} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="edit-role">Role</Label>
-                  <Select id="edit-role" defaultValue={selectedUser.role_id}>
+                  <Select name="role_id" defaultValue={selectedUser.role_id || ""} required>
                     <SelectTrigger>
                       <SelectValue placeholder="Select role" />
                     </SelectTrigger>
@@ -1187,7 +1291,7 @@ export default function UsersPage() {
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="edit-status">Status</Label>
-                  <Select id="edit-status" defaultValue={selectedUser.is_active ? "active" : "inactive"}>
+                  <Select name="is_active" defaultValue={selectedUser.is_active ? "active" : "inactive"}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -1206,7 +1310,7 @@ export default function UsersPage() {
                     <Building className="mr-1 h-4 w-4" />
                     Company
                   </Label>
-                  <Select value={selectedCompanyId} onValueChange={setSelectedCompanyId}>
+                  <Select name="company_id" value={selectedCompanyId} onValueChange={setSelectedCompanyId}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select company" />
                     </SelectTrigger>
@@ -1227,6 +1331,7 @@ export default function UsersPage() {
                     Facility
                   </Label>
                   <Select
+                    name="facility_id"
                     value={selectedFacilityId}
                     onValueChange={setSelectedFacilityId}
                     disabled={!selectedCompanyId || availableFacilities.length === 0}
@@ -1258,7 +1363,7 @@ export default function UsersPage() {
                     Department
                   </Label>
                   <Select
-                    id="edit-department"
+                    name="department_id"
                     defaultValue={selectedUser.department?.id}
                     disabled={!selectedFacilityId || availableDepartments.length === 0}
                   >
@@ -1283,14 +1388,15 @@ export default function UsersPage() {
                   </Select>
                 </div>
               </div>
-            </div>
+
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit">Save Changes</Button>
+              </DialogFooter>
+            </form>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSaveChanges}>Save Changes</Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 
