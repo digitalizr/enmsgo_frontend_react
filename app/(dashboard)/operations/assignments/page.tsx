@@ -58,8 +58,8 @@ export default function AssignmentsPage() {
   const [isAssignSmartMeterOpen, setIsAssignSmartMeterOpen] = useState(false)
   const [isAssignSmartMeterDirectOpen, setIsAssignSmartMeterDirectOpen] = useState(false)
   const [selectedSmartMeters, setSelectedSmartMeters] = useState([])
-  const [userEdgeGateways, setUserEdgeGateways] = useState([]) // New state for user edge gateways
-  const [userSmartMeters, setUserSmartMeters] = useState([]) // New state for user smart meters
+  const [userEdgeGateways, setUserEdgeGateways] = useState([]) // State for user edge gateways
+  const [userSmartMeters, setUserSmartMeters] = useState([]) // State for user smart meters
   const [expandedUsers, setExpandedUsers] = useState([])
   const [expandedGateways, setExpandedGateways] = useState([])
   const [users, setUsers] = useState([])
@@ -67,85 +67,90 @@ export default function AssignmentsPage() {
   const [availableEdgeGateways, setAvailableEdgeGateways] = useState([])
   const [availableSmartMeters, setAvailableSmartMeters] = useState([])
   const [activeTab, setActiveTab] = useState("users")
+  const [userLoadStatus, setUserLoadStatus] = useState({}) // Track loading status per user
 
-  // Update the fetchUserCompanies function to handle errors better
+  // Use the optimized fetchUserCompanies function
   const fetchUserCompanies = async (userId) => {
     try {
-      console.log(`Fetching company information for user: ${userId}`)
-      const response = await usersAPI.getUserCompanyRelationships(userId)
+      // Skip if we've already fetched or are fetching data for this user
+      if (userLoadStatus[userId] === 'loading' || userLoadStatus[userId] === 'loaded') {
+        return;
+      }
+      
+      // Set user status to loading
+      setUserLoadStatus(prev => ({ ...prev, [userId]: 'loading' }));
+      
+      // Use the cached version from the userDeviceAPI
+      const response = await userDeviceAPI.getUserCompanyRelationships(userId);
 
       // Check if response has data property and it's an array
       if (response && response.data && Array.isArray(response.data)) {
-        console.log(`Company data for user ${userId}:`, response.data)
+        console.log(`Company data for user ${userId}:`, response.data);
 
         if (response.data.length === 0) {
-          console.warn(`No company relationships found for user ${userId}`)
+          console.warn(`No company relationships found for user ${userId}`);
         }
 
         setUserCompanies((prev) => ({
           ...prev,
           [userId]: response.data,
-        }))
+        }));
+        
+        setUserLoadStatus(prev => ({ ...prev, [userId]: 'loaded' }));
       } else {
-        console.warn(`Invalid response format for user ${userId}:`, response)
+        console.warn(`Invalid response format for user ${userId}:`, response);
         // Set empty array for this user to prevent further API calls
         setUserCompanies((prev) => ({
           ...prev,
           [userId]: [],
-        }))
+        }));
+        
+        setUserLoadStatus(prev => ({ ...prev, [userId]: 'error' }));
       }
     } catch (error) {
-      console.error(`Error fetching companies for user ${userId}:`, error)
+      console.error(`Error fetching companies for user ${userId}:`, error);
       // Set empty array for this user to prevent further API calls
       setUserCompanies((prev) => ({
         ...prev,
         [userId]: [],
-      }))
-      // Don't show toast for every user to avoid spamming the UI
-    } finally {
-      // Make sure loading state is updated even if there's an error
-      if (loading) {
-        setLoading(false)
-      }
+      }));
+      
+      setUserLoadStatus(prev => ({ ...prev, [userId]: 'error' }));
     }
-  }
+  };
 
-  // Update the fetchUsers function to handle errors better
+  // Update the fetchUsers function to use sequential loading for user companies
   const fetchUsers = async () => {
     try {
-      setLoading(true)
-      const response = await usersAPI.getAll()
+      setLoading(true);
+      const response = await usersAPI.getAll();
 
       if (response && response.data && Array.isArray(response.data)) {
-        setUsers(response.data)
-
-        // Pre-fetch company relationships for all users, but limit to avoid overwhelming the API
-        const userBatches = chunkArray(response.data, 5) // Process 5 users at a time
-
-        for (const batch of userBatches) {
-          await Promise.all(batch.map((user) => fetchUserCompanies(user.id)))
-        }
+        setUsers(response.data);
+        
+        // Instead of fetching all users' company relationships at once,
+        // we'll only fetch them when needed (when a user is expanded or selected)
       } else {
-        console.error("Invalid response format from usersAPI.getAll:", response)
-        setUsers([])
+        console.error("Invalid response format from usersAPI.getAll:", response);
+        setUsers([]);
         toast({
           variant: "destructive",
           title: "Error",
           description: "Failed to fetch users. Invalid response format.",
-        })
+        });
       }
     } catch (error) {
-      console.error("Error fetching users:", error)
-      setUsers([])
+      console.error("Error fetching users:", error);
+      setUsers([]);
       toast({
         variant: "destructive",
         title: "Error",
         description: "Failed to fetch users. Please try again.",
-      })
+      });
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   // Fetch available edge gateways from the API
   const fetchAvailableEdgeGateways = async () => {
@@ -256,14 +261,25 @@ export default function AssignmentsPage() {
     }
   }, [selectedUser])
 
-  // Toggle user expansion
+  // Toggle user expansion - we'll fetch company data only when expanding
   const toggleUserExpansion = (userId) => {
     if (expandedUsers.includes(userId)) {
-      setExpandedUsers(expandedUsers.filter((id) => id !== userId))
+      setExpandedUsers(expandedUsers.filter((id) => id !== userId));
     } else {
-      setExpandedUsers([...expandedUsers, userId])
+      setExpandedUsers([...expandedUsers, userId]);
+      // Only fetch company data if we don't already have it
+      if (!userCompanies[userId]) {
+        fetchUserCompanies(userId);
+      }
     }
-  }
+  };
+
+  // When a user is selected, fetch their company data if not already loaded
+  useEffect(() => {
+    if (selectedUser && !userCompanies[selectedUser]) {
+      fetchUserCompanies(selectedUser);
+    }
+  }, [selectedUser]);
 
   // Toggle gateway expansion
   const toggleGatewayExpansion = (gatewayId) => {

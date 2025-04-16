@@ -4,8 +4,123 @@
 import { getApiUrl } from "./url-helper"
 
 // Base API URL - should be set from environment variables in production
-//const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"
-const API_BASE_URL = "https://api.enmsgo.com/api"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"
+//const API_BASE_URL = "https://api.enmsgo.com/api"
+
+// Cache implementation
+const apiCache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
+
+// Helper function to handle rate limited requests with exponential backoff
+const fetchWithRetry = async (url, options, retries = 3, delay = 1000) => {
+  let lastError;
+  
+  for (let i = 0; i < retries; i++) {
+    try {
+      const response = await fetch(url, options);
+      
+      // If we get rate limited (429), wait and retry
+      if (response.status === 429) {
+        console.log(`Rate limited (429). Attempt ${i + 1}/${retries}. Waiting ${delay}ms before retry.`);
+        await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, i)));
+        continue;
+      }
+      
+      return response;
+    } catch (error) {
+      console.error(`API request failed, attempt ${i + 1}/${retries}`, error);
+      lastError = error;
+      
+      // For network errors, wait and retry
+      await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, i)));
+    }
+  }
+  
+  throw lastError || new Error('Maximum retries reached');
+}
+
+// Enhanced helper function for handling API responses with retry logic
+export const handleResponseWithRetry = async (response, retries = 3, initialBackoff = 1000) => {
+  // Clone the response for error handling
+  const responseClone = response.clone();
+  
+  // If response is rate limited (429)
+  if (response.status === 429) {
+    if (retries > 0) {
+      // Calculate backoff with exponential delay and some randomness
+      const backoff = initialBackoff * Math.pow(2, 3 - retries) * (0.9 + Math.random() * 0.2);
+      console.log(`Rate limited. Retrying after ${backoff}ms. Attempts left: ${retries}`);
+      
+      // Wait for backoff period
+      await new Promise(resolve => setTimeout(resolve, backoff));
+      
+      // Retry the request - we need to recreate it
+      const originalRequest = response.url;
+      const method = response.method;
+      const headers = response.headers;
+      
+      const newResponse = await fetch(originalRequest, {
+        method,
+        headers,
+        // Other request parameters would need to be reconstructed if needed
+      });
+      
+      // Recursively retry with one fewer retry remaining
+      return handleResponseWithRetry(newResponse, retries - 1, initialBackoff);
+    } else {
+      console.error("Maximum retries exceeded for rate-limited request");
+    }
+  }
+  
+  if (!response.ok) {
+    let errorMessage = "An error occurred";
+
+    try {
+      const errorData = await responseClone.json();
+      errorMessage = errorData.message || errorData.details || errorMessage;
+    } catch (e) {
+      // If the response is not JSON, use the status text
+      errorMessage = response.statusText || errorMessage;
+    }
+
+    throw new Error(errorMessage);
+  }
+
+  return await response.json();
+}
+
+// Function to get from cache or fetch
+export const cachedApiRequest = async (endpoint, options = {}) => {
+  const cacheKey = `${endpoint}-${JSON.stringify(options)}`;
+  
+  // Check if we have a valid cache entry
+  if (apiCache.has(cacheKey)) {
+    const { data, timestamp } = apiCache.get(cacheKey);
+    
+    // Return cached data if it's still valid
+    if (Date.now() - timestamp < CACHE_TTL) {
+      console.log(`Using cached data for ${endpoint}`);
+      return data;
+    }
+  }
+  
+  try {
+    // If not in cache or expired, make the API call
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+    const data = await handleResponseWithRetry(response);
+    
+    // Cache the result
+    apiCache.set(cacheKey, {
+      data,
+      timestamp: Date.now()
+    });
+    
+    return data;
+  } catch (error) {
+    console.error(`Error in cachedApiRequest for ${endpoint}:`, error);
+    throw error;
+  }
+}
 
 // Helper function for handling API responses
 const handleResponse = async (response) => {
@@ -20,7 +135,7 @@ const handleResponse = async (response) => {
         return Promise.reject(error)
       }
 
-      return data
+      return normalizeResponse(data)
     } else {
       // Handle non-JSON responses
       const text = await response.text()
@@ -35,6 +150,31 @@ const handleResponse = async (response) => {
     console.error("Error parsing API response:", error)
     return Promise.reject("Failed to parse API response")
   }
+}
+
+// Helper function to normalize response formats
+const normalizeResponse = (data) => {
+  // If already in the right format, return it
+  if (data && data.data) {
+    return data;
+  }
+  
+  // If it's an array, wrap it in data property
+  if (Array.isArray(data)) {
+    return { data };
+  }
+  
+  // If it's an object but not in our format, wrap it
+  if (data && typeof data === 'object' && !Array.isArray(data)) {
+    // Check if it's a single object that should be in an array
+    if (data.id) {
+      return { data: [data] };
+    }
+    return data;
+  }
+  
+  // Return empty data as fallback
+  return { data: [] };
 }
 
 // Helper function to get auth header
@@ -60,7 +200,7 @@ const apiRequest = async (endpoint, method = "GET", body = null) => {
 
     console.log(`Making API request to ${url} with options:`, options)
 
-    const response = await fetch(url, options)
+    const response = await fetchWithRetry(url, options)
 
     // Check if response indicates unauthorized (token expired or invalid)
     if (response.status === 401 || response.status === 403) {

@@ -112,6 +112,7 @@ CREATE TABLE departments (
 
 -- #########################User-company relationships#####################################
 CREATE TABLE user_companies (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
     facility_id UUID REFERENCES facilities(id) ON DELETE CASCADE,
@@ -119,7 +120,7 @@ CREATE TABLE user_companies (
     is_primary BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    PRIMARY KEY (user_id, company_id)
+    CONSTRAINT user_company_unique UNIQUE(user_id, company_id, facility_id, department_id)
 );
 
 -- ##############################Device models and manufacturers#############################
@@ -254,6 +255,39 @@ CREATE TABLE smart_meter_assignments (
     updated_by UUID REFERENCES users(id),
     UNIQUE(smart_meter_id)
 );
+
+-- User-Edge Gateway assignments
+CREATE TABLE user_edge_gateway_assignments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    edge_gateway_id UUID NOT NULL REFERENCES edge_gateways(id) ON DELETE CASCADE,
+    company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    facility_id UUID REFERENCES facilities(id) ON DELETE CASCADE,
+    department_id UUID REFERENCES departments(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    created_by UUID REFERENCES users(id),
+    updated_by UUID REFERENCES users(id),
+    UNIQUE(edge_gateway_id) -- Each edge gateway can only be assigned to one user
+);
+
+-- User-Smart Meter assignments
+CREATE TABLE user_smart_meter_assignments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    smart_meter_id UUID NOT NULL REFERENCES smart_meters(id) ON DELETE CASCADE,
+    edge_gateway_id UUID REFERENCES edge_gateways(id) ON DELETE CASCADE,
+    company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    facility_id UUID REFERENCES facilities(id) ON DELETE CASCADE,
+    department_id UUID REFERENCES departments(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    created_by UUID REFERENCES users(id),
+    updated_by UUID REFERENCES users(id),
+    UNIQUE(smart_meter_id) -- Each smart meter can only be assigned to one user
+);
+
+
 -- ###########################################################################################
 -- Subscription plans
 CREATE TABLE subscription_plans (
@@ -358,6 +392,26 @@ CREATE TABLE integration_configs (
     created_by UUID REFERENCES users(id),
     updated_by UUID REFERENCES users(id)
 );
+
+
+-- Create indexes for performance
+CREATE INDEX idx_user_edge_gateway_assignments_user_id ON user_edge_gateway_assignments(user_id);
+CREATE INDEX idx_user_edge_gateway_assignments_edge_gateway_id ON user_edge_gateway_assignments(edge_gateway_id);
+CREATE INDEX idx_user_edge_gateway_assignments_company_id ON user_edge_gateway_assignments(company_id);
+
+CREATE INDEX idx_user_smart_meter_assignments_user_id ON user_smart_meter_assignments(user_id);
+CREATE INDEX idx_user_smart_meter_assignments_smart_meter_id ON user_smart_meter_assignments(smart_meter_id);
+CREATE INDEX idx_user_smart_meter_assignments_edge_gateway_id ON user_smart_meter_assignments(edge_gateway_id);
+CREATE INDEX idx_user_smart_meter_assignments_company_id ON user_smart_meter_assignments(company_id);
+
+-- Apply audit triggers to new tables
+CREATE TRIGGER audit_user_edge_gateway_assignments 
+AFTER INSERT OR UPDATE OR DELETE ON user_edge_gateway_assignments 
+FOR EACH ROW EXECUTE FUNCTION process_audit();
+
+CREATE TRIGGER audit_user_smart_meter_assignments 
+AFTER INSERT OR UPDATE OR DELETE ON user_smart_meter_assignments 
+FOR EACH ROW EXECUTE FUNCTION process_audit();
 
 -- Insert default roles
 INSERT INTO roles (id, name, description, is_system) VALUES 

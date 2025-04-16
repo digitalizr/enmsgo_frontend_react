@@ -1,8 +1,8 @@
 // API configuration for the Energy Management SaaS Platform
 
 // Base API URL - should be set from environment variables in production
-//export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"
-export const API_BASE_URL = "https://api.enmsgo.com/api"
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"
+//export const API_BASE_URL = "https://api.enmsgo.com/api"
 
 // Helper function to get auth header
 export const authHeader = () => {

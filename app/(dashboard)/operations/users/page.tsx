@@ -44,6 +44,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
 import { usersAPI, companiesAPI } from "@/services/api"
 import { Checkbox } from "@/components/ui/checkbox"
+import { userDeviceAPI } from "@/services/user-device-api"
 
 // Helper function to get auth header
 const authHeader = () => {
@@ -52,7 +53,33 @@ const authHeader = () => {
 }
 
 // Base API URL
-const API_BASE_URL = "https://api.enmsgo.com/api"
+//const API_BASE_URL = "https://api.enmsgo.com/api"
+const API_BASE_URL = "http://localhost:3001/api"
+
+// Helper function to handle rate limited requests with exponential backoff
+const fetchWithRetry = async (apiCall, retries = 3, delay = 1000) => {
+  let lastError
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await apiCall()
+    } catch (error) {
+      console.log(`API call failed, attempt ${i + 1}/${retries}`, error)
+      lastError = error
+      
+      // If this is a rate limiting error (429), wait and retry
+      if (error.response?.status === 429 || (error.message && error.message.includes("429"))) {
+        const backoffDelay = delay * Math.pow(2, i)
+        console.log(`Rate limit hit. Backing off for ${backoffDelay}ms before retry.`)
+        await new Promise(resolve => setTimeout(resolve, backoffDelay))
+        continue
+      }
+      
+      // For other errors, just throw immediately
+      throw error
+    }
+  }
+  throw lastError
+}
 
 export default function UsersPage() {
   const { toast } = useToast()
@@ -96,7 +123,7 @@ export default function UsersPage() {
   const [selectedUsers, setSelectedUsers] = useState<string[]>([])
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false)
 
-  // Fetch users
+  // Fetch users with optimized company relationship loading
   const fetchUsers = async () => {
     try {
       setLoading(true)
@@ -104,46 +131,43 @@ export default function UsersPage() {
       const response = await usersAPI.getAll()
       console.log("Users API response:", response)
 
-      if (response && response.data) {
-        // Process users to ensure they have company/facility/department info
-        const processedUsers = await Promise.all(
-          response.data.map(async (user) => {
-            // If user already has company info, return as is
-            if (user.company) {
-              return user
-            }
-
-            try {
-              // Fetch user-company relationships
-              const relationshipsResponse = await fetch(`${API_BASE_URL}/user-companies/${user.id}`, {
-                method: "GET",
-                headers: { ...authHeader(), "Content-Type": "application/json" },
-              })
-
-              if (relationshipsResponse.ok) {
-                const relationships = await relationshipsResponse.json()
-                console.log(`Relationships for user ${user.id}:`, relationships)
-
-                // If we have relationships, add company, facility, and department info
-                if (relationships && relationships.data && relationships.data.length > 0) {
-                  const primaryRelationship = relationships.data.find((r) => r.is_primary) || relationships.data[0]
-
-                  return {
-                    ...user,
-                    company: primaryRelationship.company,
-                    facility: primaryRelationship.facility,
-                    department: primaryRelationship.department,
-                  }
-                }
-              }
-
-              return user
-            } catch (error) {
-              console.error(`Error fetching relationships for user ${user.id}:`, error)
-              return user
-            }
-          }),
-        )
+      if (response && response.data && Array.isArray(response.data)) {
+        // Extract users that need company relationships
+        const usersWithoutCompanyInfo = response.data.filter(user => !user.company);
+        const userIds = usersWithoutCompanyInfo.map(user => user.id);
+        
+        console.log(`Found ${userIds.length} users that need company relationships`);
+        
+        // If we have users needing company info, fetch relationships in batches
+        let relationshipsMap = {};
+        if (userIds.length > 0) {
+          // Use the new batch method to get all relationships at once
+          relationshipsMap = await userDeviceAPI.getUserCompanyRelationshipsBatched(userIds, 5);
+          console.log("Fetched relationships in batches:", Object.keys(relationshipsMap).length);
+        }
+        
+        // Process users with the fetched relationships
+        const processedUsers = response.data.map(user => {
+          // If user already has company info from the API, keep it
+          if (user.company) {
+            return user;
+          }
+          
+          // Otherwise, try to get it from our batch fetch results
+          const relationships = relationshipsMap[user.id];
+          if (relationships && relationships.data && relationships.data.length > 0) {
+            const primaryRelationship = relationships.data.find(r => r.is_primary) || relationships.data[0];
+            return {
+              ...user,
+              company: primaryRelationship.company,
+              facility: primaryRelationship.facility,
+              department: primaryRelationship.department
+            };
+          }
+          
+          // If no relationships were found, return user as is
+          return user;
+        });
 
         setUsers(processedUsers)
       } else {
