@@ -2,7 +2,8 @@
 import { authHeader } from "./apiConfig"
 import { handleResponseWithRetry, cachedApiRequest } from "./api" 
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"
+//const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"
+const API_BASE_URL = "https://api.enmsgo.com/api"
 
 // Cache for user company relationships to avoid repeated API calls
 const userCompanyCache = new Map();

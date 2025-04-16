@@ -53,8 +53,8 @@ const authHeader = () => {
 }
 
 // Base API URL
-//const API_BASE_URL = "https://api.enmsgo.com/api"
-const API_BASE_URL = "http://localhost:3001/api"
+const API_BASE_URL = "https://api.enmsgo.com/api"
+//const API_BASE_URL = "http://localhost:3001/api"
 
 // Helper function to handle rate limited requests with exponential backoff
 const fetchWithRetry = async (apiCall, retries = 3, delay = 1000) => {
